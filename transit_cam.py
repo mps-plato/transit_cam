@@ -1,18 +1,15 @@
-import sys
-#import and init pygame
 import os
 import yaml
 import pygame
 import datetime
-import pygame.camera as Camera
-import random
+import pygame.camera as py_camera
 
-#define some colors
+# define some colors
 WHITE = (255, 255, 255)
-BLACK = (  0,   0,   0)
-BLUE  = (  0,   0, 255)
-GREEN = (  0, 255,   0)
-RED   = (255,   0,   0)
+BLACK = (0,   0,   0)
+BLUE = (0,   0, 255)
+GREEN = (0, 255,   0)
+RED = (255,   0,   0)
 
 DEFAULT_SIZE = (900, 599)
 
@@ -34,36 +31,38 @@ YAML_ROI = 'roi'
 YAML_OUT_FILENAME = 'out_filename'
 YAML_MONOCHROME = 'monochrome'
 
+
 class SimStatus(object):
-    def __init__(self, cam_rect, plot_rect, screen, roi, logging, last_logging_change = datetime.datetime.now()):
+    def __init__(self, cam_rect, a_plot_rect, screen, a_roi, a_logging, a_last_logging_change=datetime.datetime.now()):
         self.cam_rect = cam_rect
-        self.plot_rect = plot_rect
+        self.plot_rect = a_plot_rect
         self.screen = screen
-        self.logging = logging
-        self.last_logging_change = last_logging_change
-        self.last_monochrome_change = last_logging_change
+        self.logging = a_logging
+        self.last_logging_change = a_last_logging_change
+        self.last_monochrome_change = a_last_logging_change
         self.index = 0
         self.done = False
         # saved status
-        self.roi = roi
+        self.roi = a_roi
         self.out_filename = 'transit_cam.log'
+        self.out_file = None
         self.monochrome = False
         
-    def load_stauts(self, filename = CONFIG_FILE):
+    def load_status(self, filename=CONFIG_FILE):
         if not os.path.isfile(filename):
             return
-        with open(filename, 'r') as input:
-            self.from_yaml(yaml.load(input))          
+        with open(filename, 'r') as in_file:
+            self.from_yaml(yaml.load(in_file, Loader=yaml.SafeLoader))
             
-    def save_status(self, filename = CONFIG_FILE):
+    def save_status(self):
         with open(CONFIG_FILE, 'w') as out:
             yaml.dump(self.to_yaml(), out, default_flow_style=False)
 
     def to_yaml(self):
         return {
-            YAML_OUT_FILENAME : self.out_filename,
-            YAML_ROI : self.rect_to_yaml(self.roi),
-            YAML_MONOCHROME : self.monochrome
+            YAML_OUT_FILENAME: self.out_filename,
+            YAML_ROI: self.rect_to_yaml(self.roi),
+            YAML_MONOCHROME: self.monochrome
         }
         
     def from_yaml(self, yaml_node):
@@ -72,7 +71,7 @@ class SimStatus(object):
         self.out_filename = yaml_node.get(YAML_OUT_FILENAME, self.out_filename)
         self.monochrome = yaml_node.get(YAML_MONOCHROME, self.monochrome)
 
-    def toggle_monochorome(self):
+    def toggle_monochrome(self):
         if (datetime.datetime.now() - self.last_monochrome_change).total_seconds() > 1:
             self.last_monochrome_change = datetime.datetime.now()
             self.monochrome = not self.monochrome
@@ -99,10 +98,10 @@ class SimStatus(object):
     @staticmethod
     def rect_to_yaml(rect):
         return {
-            YAML_LEFT : rect.left,
-            YAML_TOP : rect.top,
-            YAML_WIDTH : rect.width,
-            YAML_HEIGHT : rect.height,
+            YAML_LEFT: rect.left,
+            YAML_TOP: rect.top,
+            YAML_WIDTH: rect.width,
+            YAML_HEIGHT: rect.height,
         }
 
     @staticmethod
@@ -161,12 +160,12 @@ class SimStatus(object):
         self.plot_rect.height = new_size[1] - self.plot_rect.top
         
     def increment_index(self, increment=1):
-        self.index += 1
+        self.index += increment
         if self.index >= self.plot_rect.width:
             self.index = 0
         
     def draw_sum(self, new_sum):
-    #     print(new_sum)
+        # print(new_sum)
         scaled = [(255. - value) * self.plot_rect.height / 255. for value in new_sum]
         if self.monochrome:
             pygame.draw.rect(self.screen, BLACK, [self.index, plot_rect.top + sum(scaled) / 3, 1, 2])
@@ -174,7 +173,8 @@ class SimStatus(object):
             pygame.draw.rect(self.screen, RED, [self.index, plot_rect.top + scaled[0], 1, 2])
             pygame.draw.rect(self.screen, GREEN, [self.index, plot_rect.top + scaled[1], 1, 2])
             pygame.draw.rect(self.screen, BLUE, [self.index, plot_rect.top + scaled[2], 1, 2])    
-    
+
+
 def handle_key_event(key, value, sim_status):
     speed = 1
     if value & pygame.KMOD_SHIFT:
@@ -190,7 +190,7 @@ def handle_key_event(key, value, sim_status):
         sim_status.toggle_logging()
         return True 
     elif key == pygame.K_m:
-        sim_status.toggle_monochorome()
+        sim_status.toggle_monochrome()
         return True 
     elif key == pygame.K_RCTRL or key == pygame.K_LCTRL or key == pygame.K_LSHIFT or key == pygame.K_RSHIFT:
         return True
@@ -220,7 +220,8 @@ def handle_key_event(key, value, sim_status):
             sim_status.move_top(-speed)
         return True    
     return False
-    
+
+
 def compute_sum(surface):
     pixel_array = pygame.PixelArray(surface)
     rect = pixel_array.shape
@@ -232,25 +233,23 @@ def compute_sum(surface):
             r_sum += (value & 0xFF0000) / 0x10000
             g_sum += (value & 0x00FF00) / 0x100
             b_sum += value & 0x0000FF
-    return (r_sum/num_pixels, g_sum/num_pixels, b_sum/num_pixels)                
+    return r_sum/num_pixels, g_sum/num_pixels, b_sum/num_pixels
+
 
 def main():
     pygame.init() 
-    Camera.init()
-    for camera in Camera.list_cameras():
+    py_camera.init(None)
+    for camera in py_camera.list_cameras():
         print(camera)
-    camera = Camera.Camera(Camera.list_cameras()[0])
+    camera = py_camera.Camera(py_camera.list_cameras()[0])
     camera.start()
     
-    #create the screen
+    # create the screen
     size = DEFAULT_SIZE
     screen = pygame.display.set_mode(size, pygame.RESIZABLE)
     regions_updated = False
     
     pygame.display.set_caption("transit_cam")
-    
-    # loop until the end
-    done = False
     
     # init the clock
     clock = pygame.time.Clock()
@@ -258,7 +257,7 @@ def main():
     pressed_keys = dict()
     
     sim_status = SimStatus(CAM_RECT, plot_rect, screen, roi, logging, datetime.datetime.now())
-    sim_status.load_stauts()
+    sim_status.load_status()
 
     # Clear the screen
     screen.fill(WHITE)
@@ -268,7 +267,6 @@ def main():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 print("User asked to quit")
-                done = True
             elif event.type == pygame.VIDEORESIZE:
                 print('Video resized')
                 screen = pygame.display.set_mode(event.size, pygame.RESIZABLE)
@@ -319,6 +317,7 @@ def main():
         clock.tick(60) 
     
     pygame.quit()
+
 
 if __name__ == '__main__':
     main()
