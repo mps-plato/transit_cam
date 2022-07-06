@@ -1,10 +1,9 @@
-import sys
-import os
-import datetime
+import os.path as path
 import MPStransit
 import numpy
 from pylab import *
 from matplotlib.backends.backend_pdf import PdfPages
+
 
 class LightPoint(object):
     def __init__(self, timestamp, value):
@@ -25,15 +24,17 @@ class LightPoint(object):
             return float((self.timestamp - other).total_seconds()) 
         return float((self.timestamp - other.timestamp).total_seconds())
         
+
 class LightCurve(object):
     def __init__(self, points):
         self.points = points
         self.update_duration()
+        self.first_point = None
+        self.last_point = None
         
     def update_duration(self):
-        timestamps = [point.timestamp for point in self.points] 
-        self.first_point = sorted(self.points, key = lambda v : v.timestamp)[0]
-        self.last_point = sorted(self.points, key = lambda v : v.timestamp)[-1]
+        self.first_point = sorted(self.points, key=lambda v: v.timestamp)[0]
+        self.last_point = sorted(self.points, key=lambda v: v.timestamp)[-1]
         
     def get_duration(self):
         return self.last_point.time_diff(self.first_point)
@@ -41,13 +42,14 @@ class LightCurve(object):
     @staticmethod
     def read(filename):
         result = []
-        with open(filename) as input:
+        with open(filename) as in_file:
             current_curve = []
-            for i, line in enumerate(input.readlines()):
+            for i, line in enumerate(in_file.readlines()):
                 if line[0] == '#':
                     if len(current_curve) > 0:
                         result.append(LightCurve(current_curve))
-                        print('Creating light curve with {} elements and a duration of {}'.format(len(current_curve), result[-1].get_duration()))
+                        print(f'Creating light curve with {len(current_curve)} elements and '
+                              f'a duration of {result[-1].get_duration()}')
                     current_curve = []
                     continue
                 new_point = LightPoint.parse_line(line)
@@ -57,18 +59,19 @@ class LightCurve(object):
                 current_curve.append(new_point)                
             if len(current_curve) > 0:
                 result.append(LightCurve(current_curve))
-                print('Creating light curve with {} elements and a duration of {}'.format(len(current_curve), result[-1].get_duration()))
-        print ('{} light curves read'.format(len(result)))
+                print(f'Creating light curve with {len(current_curve)} elements and '
+                      f'a duration of {result[-1].get_duration()}')
+        print(f'{len(result)} light curves read')
         return result
         
     def extract(self, from_time, to_time):
-        return LightCurve([point for point in self.points if point.timestamp >= from_time and point.timestamp < to_time])
+        return LightCurve([point for point in self.points if from_time <= point.timestamp < to_time])
         
     def split(self, separators):
         result = []
         new_curve = []
         index = 0
-        for point in sorted(self.points, key = lambda v : v.timestamp):
+        for point in sorted(self.points, key=lambda v: v.timestamp):
             if point.timestamp < separators[index]:
                 new_curve.append(point)
             else:
@@ -93,32 +96,36 @@ class LightCurve(object):
         
     def get_transit_center(self):
         threshold = (self.get_norm() + self.get_min()) / 2.
-        mean_time = mean([point.time_diff(self.first_point) for point in self.points if mean(point.value) <= threshold])
+        # mean_time = mean([point.time_diff(self.first_point)
+        #                   for point in self.points if mean(point.value) <= threshold])
 #         return self.first_point.timestamp+datetime.timedelta(seconds=mean_time)
         
-        mean_time_obscuration = mean([point.time_diff(self.first_point)*(self.get_norm()-mean(point.value)) for point in self.points if mean(point.value) <= threshold])
-        mean_obscuration = self.get_norm()-mean([mean(point.value) for point in self.points if mean(point.value) <= threshold])
+        mean_time_obscuration = mean([point.time_diff(self.first_point)*(self.get_norm()-mean(point.value))
+                                      for point in self.points if mean(point.value) <= threshold])
+        mean_obscuration = self.get_norm()-mean([mean(point.value) for point in self.points if mean(point.value) <=
+                                                 threshold])
         return self.first_point.timestamp+datetime.timedelta(seconds=mean_time_obscuration/mean_obscuration)
         
     def invert(self, timestamp):
         return LightCurve([LightPoint(timestamp-(point.timestamp-timestamp), point.value) for point in self.points])    
     
-def add_plot_info(axis, period, num_curves, depth):
-    axis.set_ylabel(MPStransit.YAXIS)
-    axis.set_xlabel('Zeit nach Tiefpunkt (s)')
-    axis.text(0.99, 0.16, "n = {} Durchgaenge".format(num_curves), size="xx-small", 
-                  transform=axis.transAxes, horizontalalignment="right", verticalalignment = "bottom")
-    axis.text(0.99, 0.11, "T = {:5.2f} Sekunde".
-                   format(period), 
-                   size="xx-small", horizontalalignment="right", transform=axis.transAxes, verticalalignment = "bottom")
-    axis.text(0.99, 0.06, "d = {:5.2f}%".format(depth, sqrt(depth/100.)),
-                   size="xx-small", horizontalalignment="right", transform=axis.transAxes, verticalalignment = "bottom")
-    axis.text(0.99, 0.01, "r/R = {:5.3f}".format(sqrt(depth/100.)),
-                   size="xx-small", horizontalalignment="right", transform=axis.transAxes, verticalalignment = "bottom")
+
+def add_plot_info(an_axis, period, num_curves, depth):
+    an_axis.set_ylabel(MPStransit.YAXIS)
+    an_axis.set_xlabel('Zeit nach Tiefpunkt (s)')
+    an_axis.text(0.99, 0.16, "n = {} Durchgaenge".format(num_curves), size="xx-small",
+                 transform=an_axis.transAxes, horizontalalignment="right", verticalalignment="bottom")
+    an_axis.text(0.99, 0.11, "T = {:5.2f} Sekunde".
+                 format(period),
+                 size="xx-small", horizontalalignment="right", transform=an_axis.transAxes, verticalalignment="bottom")
+    an_axis.text(0.99, 0.06, "d = {:5.2f}%".format(depth, sqrt(depth / 100.)),
+                 size="xx-small", horizontalalignment="right", transform=an_axis.transAxes, verticalalignment="bottom")
+    an_axis.text(0.99, 0.01, "r/R = {:5.3f}".format(sqrt(depth / 100.)),
+                 size="xx-small", horizontalalignment="right", transform=an_axis.transAxes, verticalalignment="bottom")
 
     
 def analyze_file(filename):
-    if not os.path.isfile(filename):
+    if not path.isfile(filename):
         print('File {} not found. Aborting'.format(filename))
         return
         
@@ -129,8 +136,10 @@ def analyze_file(filename):
         period, depth, transit_centers = MPStransit.lightcurve_analyze(array(times), array(values), True)
         clipped_curves = []
         for transit_center in transit_centers:
-            clipped_curve = light_curve.extract(light_curve.first_point.timestamp + datetime.timedelta(seconds=transit_center - period / 2.), 
-                light_curve.first_point.timestamp + datetime.timedelta(seconds=transit_center + period / 2.))
+            clipped_curve = light_curve.extract(light_curve.first_point.timestamp +
+                                                datetime.timedelta(seconds=transit_center - period / 2.),
+                                                light_curve.first_point.timestamp +
+                                                datetime.timedelta(seconds=transit_center + period / 2.))
             clipped_curves.append(clipped_curve.normalize())
 
         print(len(clipped_curves))
@@ -138,41 +147,40 @@ def analyze_file(filename):
         fig = figure(1, dpi=400)
         fig.set_size_inches((8.27, 11.69))
         fig.clf()
-        fig.suptitle('Zukunftstag 2017 - MPS')
+        fig.suptitle('Nacht des Wissens 2022 - MPS')
 #         plt1 = subplot(111)
         plt1 = subplot(211)
         for clipped_curve in clipped_curves[0::2]:
             transit_center = clipped_curve.get_transit_center()
-            time = [point.time_diff(transit_center) for point in clipped_curve.points]
+            curve_time = [point.time_diff(transit_center) for point in clipped_curve.points]
             light_curve_points = [mean(point.value) for point in clipped_curve.points]
-            plot(time, light_curve_points)
+            plot(curve_time, light_curve_points)
         for clipped_curve in clipped_curves[1::2]:
             transit_center = clipped_curve.get_transit_center()
-            time = [point.time_diff(transit_center) for point in clipped_curve.invert(transit_center).points]
+            curve_time = [point.time_diff(transit_center) for point in clipped_curve.invert(transit_center).points]
             light_curve_points = [mean(point.value) for point in clipped_curve.points]
-            plot(time, light_curve_points)
+            plot(curve_time, light_curve_points)
         plt1.set_title('Gespiegelte Lichtkurve')
         add_plot_info(gca(), period, len(light_curves), depth)
         
         plt1 = subplot(212)
         for clipped_curve in clipped_curves:
             transit_center = clipped_curve.get_transit_center()
-            time = [point.time_diff(transit_center) for point in clipped_curve.points]
+            curve_time = [point.time_diff(transit_center) for point in clipped_curve.points]
             light_curve_points = [mean(point.value) for point in clipped_curve.points]
-            plot(time, light_curve_points)
+            plot(curve_time, light_curve_points)
         plt1.set_title('Direkte Lichtkurve')
-        axis = gca() 
-        add_plot_info(axis, period, len(light_curves), depth)
+        current_axis = gca()
+        add_plot_info(current_axis, period, len(light_curves), depth)
         
         # add timestamp at the bottom right
         figtext(0.99, 0.01, light_curve.first_point.timestamp.strftime("%Y-%m-%dT%H:%M:%S"),
-                   size="xx-small", horizontalalignment="right")
-
+                size="xx-small", horizontalalignment="right")
 
         try:
-            filename = light_curve.first_point.timestamp.strftime('Zukunftstag 2017 - %Y_%m_%d_%H_%M_%S.pdf') 
+            filename = light_curve.first_point.timestamp.strftime('Nacht des Wissens 2022 - %Y_%m_%d_%H_%M_%S.pdf')
             pdf = PdfPages(filename)
-            savefig(pdf, format = "pdf")
+            savefig(pdf, format="pdf")
             pdf.close()
         except PermissionError:
             print('File {} is in use'.format(filename))
@@ -180,9 +188,11 @@ def analyze_file(filename):
         show()
         draw()
 
+
 def main():
     for filename in sys.argv[1:]+[r'transit_cam.log']: 
         analyze_file(filename)
-    
+
+
 if __name__ == '__main__':
     main()
