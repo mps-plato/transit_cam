@@ -1,0 +1,14 @@
+Amplitude: 20
+Period: 1000
+Pulsating: false
+Spot:
+  Height: 156
+  Left: 1015
+  Top: 324
+  Width: 156
+Spot Visible: true
+Star:
+  Height: 509
+  Left: 705
+  Top: 254
+  Width: 509
