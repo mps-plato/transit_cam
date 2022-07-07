@@ -1,4 +1,6 @@
 import os.path as path
+from argparse import ArgumentParser
+
 import MPStransit
 import numpy
 from pylab import *
@@ -28,10 +30,10 @@ class LightPoint(object):
 class LightCurve(object):
     def __init__(self, points):
         self.points = points
-        self.update_duration()
         self.first_point = None
         self.last_point = None
-        
+        self.update_duration()
+
     def update_duration(self):
         self.first_point = sorted(self.points, key=lambda v: v.timestamp)[0]
         self.last_point = sorted(self.points, key=lambda v: v.timestamp)[-1]
@@ -124,13 +126,16 @@ def add_plot_info(an_axis, period, num_curves, depth):
                  size="xx-small", horizontalalignment="right", transform=an_axis.transAxes, verticalalignment="bottom")
 
     
-def analyze_file(filename):
+def analyze_file(filename, no_pdf=False, count=1, planet_name=None, **kwargs):
+    print(f'Analyzing {count} light curves from file {filename} with name {planet_name} amd {"not " if no_pdf else ""}writing to PDF')
     if not path.isfile(filename):
         print('File {} not found. Aborting'.format(filename))
         return
-        
-    light_curves = LightCurve.read(filename)
-    for light_curve in reversed(light_curves):
+
+    light_curves = list(reversed(LightCurve.read(filename)))
+    if count > 0:
+        light_curves = light_curves[:count]
+    for light_curve in light_curves:
         times = [point.time_diff(light_curve.first_point) for point in light_curve.points]
         values = [sum(point.value) for point in light_curve.points]
         period, depth, transit_centers = MPStransit.lightcurve_analyze(array(times), array(values), True)
@@ -147,7 +152,7 @@ def analyze_file(filename):
         fig = figure(1, dpi=400)
         fig.set_size_inches((8.27, 11.69))
         fig.clf()
-        fig.suptitle('Nacht des Wissens 2022 - MPS')
+        fig.suptitle(f'Nacht des Wissens 2022 - {planet_name}')
 #         plt1 = subplot(111)
         plt1 = subplot(211)
         for clipped_curve in clipped_curves[0::2]:
@@ -177,21 +182,33 @@ def analyze_file(filename):
         figtext(0.99, 0.01, light_curve.first_point.timestamp.strftime("%Y-%m-%dT%H:%M:%S"),
                 size="xx-small", horizontalalignment="right")
 
-        try:
-            filename = light_curve.first_point.timestamp.strftime('Nacht des Wissens 2022 - %Y_%m_%d_%H_%M_%S.pdf')
-            pdf = PdfPages(filename)
-            savefig(pdf, format="pdf")
-            pdf.close()
-        except PermissionError:
-            print('File {} is in use'.format(filename))
+        if no_pdf is False:
+            try:
+                filename = light_curve.first_point.timestamp.strftime(
+                    'Nacht des Wissens 2022 - %Y_%m_%d_%H_%M_%S.pdf')
+                pdf = PdfPages(filename)
+                savefig(pdf, format="pdf")
+                pdf.close()
+            except PermissionError:
+                print('File {} is in use'.format(filename))
         subplots_adjust(hspace=0.4)
         show()
         draw()
 
 
 def main():
-    for filename in sys.argv[1:]+[r'transit_cam.log']: 
-        analyze_file(filename)
+    parser = ArgumentParser(description='Analyze and plot light curves')
+    parser.add_argument('files', metavar='file', nargs='*', default=['transit_cam.log'], help='files to be analyzed')
+    parser.add_argument('-np', '--no_pdf', action='store_true', help='skip PDF export')
+    parser.add_argument('-c', '--count', action='store', type=int, default=1,
+                        help='number of light curves to analyze (0 for all)')
+    parser.add_argument('-n', '--planet_name', action='store', type=str, help='name of the planet', default='MPS')
+
+    args = parser.parse_args()
+
+    my_kwargs = vars(args)
+    for filename in args.files:
+        analyze_file(filename, **my_kwargs)
 
 
 if __name__ == '__main__':
