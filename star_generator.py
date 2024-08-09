@@ -308,7 +308,10 @@ class SimStatus(object):
     def handle_key_event(self, key, value, pressed_down=True):
         if key is not None:
             if pressed_down:
-                value ^= pygame.KMOD_NUM
+                # if value contains the NUM pad modifier, remove it,
+                # because the following code in this method compares
+                # against values without NUM pad modifier.
+                value -= (value & pygame.KMOD_NUM)
                 print('Pressed key {} with value {}'.format(key, value))
                 self.pressed_keys[key] = value
             else:
