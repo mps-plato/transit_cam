@@ -120,7 +120,7 @@ class SimStatus(object):
         # non-preserved status
         self.done = False
         self.screen_size = screen_size
-        self.pressed_keys = set()
+        self.pressed_keys = dict()
         self.screen = None
         self.framed = True
         # preserved status
@@ -308,136 +308,118 @@ class SimStatus(object):
     def handle_key_event(self, key, value, pressed_down=True):
         if key is not None:
             if pressed_down:
-                value ^= pygame.KMOD_NUM
+                # if value contains the NUM pad modifier, remove it,
+                # because the following code in this method compares
+                # against values without NUM pad modifier.
+                value -= (value & pygame.KMOD_NUM)
                 print('Pressed key {} with value {}'.format(key, value))
-                self.pressed_keys.add(key)
+                self.pressed_keys[key] = value
             else:
                 print('Released key {}'.format(key))
-                if key in self.pressed_keys:
-                    self.pressed_keys.remove(key)
+                if key in self.pressed_keys.keys():
+                    del self.pressed_keys[key]
 
         #
         # Execution
         #
         # if pressed escape, quit            
-        if pygame.K_ESCAPE in self.pressed_keys:
+        if self.pressed_keys.get(pygame.K_ESCAPE, None) in [0]:
             self.done = True
         # if pressed Alt+F4, quit
-        elif pygame.K_F4 in self.pressed_keys and (pygame.K_LALT in self.pressed_keys or pygame.K_RALT in self.pressed_keys):
+        elif self.pressed_keys.get(pygame.K_F4, None) in [pygame.KMOD_RALT, pygame.KMOD_LALT]:
             self.done = True
         #
         # Frame
         #
         # if pressed 'f', toggle frame
-        elif pygame.K_f in self.pressed_keys:
+        elif self.pressed_keys.get(pygame.K_f, None) == 0:
             self.toggle_frame()
-            self.pressed_keys.remove(pygame.K_f)
-
-        # if pressed 'Ctrl+Alt+Shift+Down', reset size
-        elif pygame.K_DOWN in self.pressed_keys and self._ctrl_and_alt_and_shift_are_pressed():
-            self.reset_spot()
-            self.pressed_keys.remove(pygame.K_DOWN)
-
-        #
-        # Star size
-        #
-        # if pressed 'Ctrl+Shift+Down', reset size
-        elif pygame.K_DOWN in self.pressed_keys and self._ctrl_and_alt_are_pressed():
-            self.reset_star()
-            self.pressed_keys.remove(pygame.K_DOWN)
-        
-
-        #
-        # Spot size
-        #
-        # if pressed Alt+down, reduce spot size
-        elif pygame.K_DOWN in self.pressed_keys and (pygame.K_LALT in self.pressed_keys or pygame.K_RALT in self.pressed_keys):
-            self.reduce_spot()
-        # if pressed Alt+up, increase spot size
-        elif pygame.K_UP in self.pressed_keys and (pygame.K_LALT in self.pressed_keys or pygame.K_RALT in self.pressed_keys):
-            self.enlarge_spot()
-        # if pressed Alt+left, increase spot width
-        elif pygame.K_LEFT in self.pressed_keys and (pygame.K_LALT in self.pressed_keys or pygame.K_RALT in self.pressed_keys):
-            self.widen_spot()
-        # if pressed Alt+right, reduce spot width
-        elif pygame.K_RIGHT in self.pressed_keys and (pygame.K_LALT in self.pressed_keys or pygame.K_RALT in self.pressed_keys):
-            self.narrow_spot()
-        # if pressed 'Alt+r', make round
-        elif pygame.K_r in self.pressed_keys and (pygame.K_LALT in self.pressed_keys or pygame.K_RALT in self.pressed_keys):
-            self.make_spot_round()
-            self.pressed_keys.remove(pygame.K_r)
-
-        ###
-        # Spot position
-        ###
-        # if pressed Alt+u, move spot up
-        elif pygame.K_u in self.pressed_keys and (pygame.K_LALT in self.pressed_keys or pygame.K_RALT in self.pressed_keys):
-            self.move_spot_up()
-        # if pressed Alt+j, move spot down
-        elif pygame.K_j in self.pressed_keys and (pygame.K_LALT in self.pressed_keys or pygame.K_RALT in self.pressed_keys):
-            self.move_spot_down()
-        # if pressed Alt+h, move spot left
-        elif pygame.K_h in self.pressed_keys and (pygame.K_LALT in self.pressed_keys or pygame.K_RALT in self.pressed_keys):
-            self.move_spot_left()
-        # if pressed Alt+k, move spot up
-        elif pygame.K_k in self.pressed_keys and (pygame.K_LALT in self.pressed_keys or pygame.K_RALT in self.pressed_keys):
-            self.move_spot_right()
-        
+            del self.pressed_keys[pygame.K_f]
         #
         # Star size
         #
         # if pressed down, reduce size
-        elif pygame.K_DOWN in self.pressed_keys:
+        elif self.pressed_keys.get(pygame.K_DOWN, None) == 0:
             self.reduce_star()
         # if pressed up, increase size
-        elif pygame.K_UP in self.pressed_keys:
+        elif self.pressed_keys.get(pygame.K_UP, None) == 0:
             self.enlarge_star()
         # if pressed left, increase width
-        elif pygame.K_LEFT in self.pressed_keys:
+        elif self.pressed_keys.get(pygame.K_LEFT, None) == 0:
             self.widen_star()
         # if pressed right, reduce width
-        elif pygame.K_RIGHT in self.pressed_keys:
+        elif self.pressed_keys.get(pygame.K_RIGHT, None) == 0:
             self.narrow_star()
         # if pressed 'r', make round
-        elif pygame.K_r in self.pressed_keys:
+        elif self.pressed_keys.get(pygame.K_r, None) == 0:
             self.make_star_round()
-            self.pressed_keys.remove(pygame.K_r)
-        
+            del self.pressed_keys[pygame.K_r]
+        # if pressed 'Ctrl+Shift+Down', reset size
+        elif self.pressed_keys.get(pygame.K_DOWN, None) in [pygame.KMOD_LCTRL | pygame.KMOD_LSHIFT,
+                                                            pygame.KMOD_RCTRL | pygame.KMOD_RSHIFT]:
+            self.reset_star()
+            del self.pressed_keys[pygame.K_DOWN]
+        #
+        # Spot size
+        #
+        # if pressed Alt+down, reduce spot size
+        elif self.pressed_keys.get(pygame.K_DOWN, None) in [pygame.KMOD_LALT, pygame.KMOD_RALT]:
+            self.reduce_spot()
+        # if pressed Alt+up, increase spot size
+        elif self.pressed_keys.get(pygame.K_UP, None) in [pygame.KMOD_LALT, pygame.KMOD_RALT]:
+            self.enlarge_spot()
+        # if pressed Alt+left, increase spot width
+        elif self.pressed_keys.get(pygame.K_LEFT, None) in [pygame.KMOD_LALT, pygame.KMOD_RALT]:
+            self.widen_spot()
+        # if pressed Alt+right, reduce spot width
+        elif self.pressed_keys.get(pygame.K_RIGHT, None) in [pygame.KMOD_LALT, pygame.KMOD_RALT]:
+            self.narrow_spot()
+        # if pressed 'Alt+r', make round
+        elif self.pressed_keys.get(pygame.K_r, None) in [pygame.KMOD_LALT, pygame.KMOD_RALT]:
+            self.make_spot_round()
+            del self.pressed_keys[pygame.K_r]
+        # if pressed 'Ctrl+Alt+Shift+Down', reset size
+        elif self.pressed_keys.get(pygame.K_DOWN, None) in [pygame.KMOD_LCTRL | pygame.KMOD_LALT | pygame.KMOD_LSHIFT,
+                                                            pygame.KMOD_RCTRL | pygame.KMOD_RALT | pygame.KMOD_RSHIFT]:
+            self.reset_spot()
+            del self.pressed_keys[pygame.K_DOWN]
+        ###
+        # Spot position
+        ###
+        # if pressed Alt+u, move spot up
+        elif self.pressed_keys.get(pygame.K_u, None) in [pygame.KMOD_LALT, pygame.KMOD_RALT]:
+            self.move_spot_up()
+        # if pressed Alt+j, move spot down
+        elif self.pressed_keys.get(pygame.K_j, None) in [pygame.KMOD_LALT, pygame.KMOD_RALT]:
+            self.move_spot_down()
+        # if pressed Alt+h, move spot left
+        elif self.pressed_keys.get(pygame.K_h, None) in [pygame.KMOD_LALT, pygame.KMOD_RALT]:
+            self.move_spot_left()
+        # if pressed Alt+k, move spot up
+        elif self.pressed_keys.get(pygame.K_k, None) in [pygame.KMOD_LALT, pygame.KMOD_RALT]:
+            self.move_spot_right()
 
         #
         # Oscillation amplitude
         #
         # if pressed 'A', increase amplitude
-        elif pygame.K_a in self.pressed_keys and (pygame.K_LSHIFT in self.pressed_keys or pygame.K_RSHIFT in self.pressed_keys):
+        elif self.pressed_keys.get(pygame.K_a, None) in [pygame.KMOD_LSHIFT, pygame.KMOD_RSHIFT]:
             self.increase_amplitude()
-        # if pressed 'Ctrl+A', reset amplitude
-        elif pygame.K_a in self.pressed_keys and (pygame.K_LCTRL in self.pressed_keys or pygame.K_RCTRL in self.pressed_keys):
-            self.reset_amplitude()
-            self.pressed_keys.remove(pygame.K_a)
         # if pressed 'a', increase amplitude
-        elif pygame.K_a in self.pressed_keys:
+        elif self.pressed_keys.get(pygame.K_a, None) == 0:
             self.decrease_amplitude()
+        # if pressed 'Ctrl+A', reset amplitude
+        elif self.pressed_keys.get(pygame.K_a, None) in [pygame.KMOD_LCTRL, pygame.KMOD_RCTRL]:
+            self.reset_amplitude()
+            del self.pressed_keys[pygame.K_a]
         # if pressed 'p', toggle pulsation
-        elif pygame.K_p in self.pressed_keys:
+        elif self.pressed_keys.get(pygame.K_p, None) == 0:
             self.toggle_pulsation()
-            self.pressed_keys.remove(pygame.K_p)
+            del self.pressed_keys[pygame.K_p]
         # if pressed 's', toggle spot
-        elif pygame.K_s in self.pressed_keys:
+        elif self.pressed_keys.get(pygame.K_s, None) == 0:
             self.toggle_spot()
-            self.pressed_keys.remove(pygame.K_s)
-
-    def _ctrl_and_alt_are_pressed(self) -> bool:
-        if pygame.K_LCTRL in self.pressed_keys and pygame.K_LSHIFT in self.pressed_keys:
-            return True
-        if pygame.K_RCTRL in self.pressed_keys and pygame.K_RSHIFT in self.pressed_keys:
-            return True
-        return False
-    
-    def _ctrl_and_alt_and_shift_are_pressed(self) -> bool:
-        if pygame.K_LSHIFT not in self.pressed_keys and pygame.K_RSHIFT not in self.pressed_keys:
-            return False
-        return self._ctrl_and_alt_are_pressed()
-
+            del self.pressed_keys[pygame.K_s]
 
     def clear_screen(self, color):
         self.screen.fill(color)
@@ -458,6 +440,7 @@ class SimStatus(object):
     @staticmethod
     def sine_rect(base_rect, amplitudes, time, period):
         ratio = 0.5 * sin(2 * pi * time / period)
+        print(time, ratio)
         return Rect(
             base_rect.left - amplitudes[0] * ratio,
             base_rect.top - amplitudes[1] * ratio,
