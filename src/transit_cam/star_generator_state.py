@@ -1,12 +1,11 @@
 
+import logging
+import os
+from math import pi, sin
 
 import pygame
 import yaml
 from yaml import SafeLoader
-
-
-import os
-from math import pi, sin
 
 from transit_cam.colors import BLACK, WHITE
 
@@ -30,7 +29,7 @@ CONFIG_FILE = 'star_generator.yaml'
 
 class Rect(pygame.Rect):
 
-    def __init__(self, left=0, top=0, width=0, height=0):
+    def __init__(self, left: int, top: int, width: int, height: int) -> None:
         pygame.Rect.__init__(self, left, top, width, height)
 
     def to_yaml(self):
@@ -41,7 +40,7 @@ class Rect(pygame.Rect):
             YAML_HEIGHT: self.height,
         }
 
-    def enlarged(self, step):
+    def enlarged(self, step: int) -> 'Rect':
         return Rect(
             self.left - step,
             self.top - step,
@@ -49,7 +48,7 @@ class Rect(pygame.Rect):
             self.height + 2 * step,
         )
 
-    def reduced(self, step):
+    def reduced(self, step: int) -> 'Rect':
         if self.width > 2 * step and self.height > 2 * step:
             return Rect(
                 self.left + step,
@@ -59,7 +58,7 @@ class Rect(pygame.Rect):
             )
         return self
 
-    def widened(self, step):
+    def widened(self, step: int) -> 'Rect':
         return Rect(
             self.left - step,
             self.top,
@@ -67,7 +66,7 @@ class Rect(pygame.Rect):
             self.height,
         )
 
-    def narrowed(self, step):
+    def narrowed(self, step: int) -> 'Rect':
         if self.width > 2 * step:
             return Rect(
                 self.left + step,
@@ -77,7 +76,7 @@ class Rect(pygame.Rect):
             )
         return self
 
-    def rounded(self):
+    def rounded(self) -> 'Rect':
         return Rect(
             self.left + (self.width - self.height) // 2,
             self.top,
@@ -86,9 +85,9 @@ class Rect(pygame.Rect):
         )
 
     @staticmethod
-    def from_yaml(yaml_node):
+    def from_yaml(yaml_node: dict[str, int]) -> 'Rect':
         if yaml_node is None:
-            return Rect()
+            return Rect(left=0, top=0, width=0, height=0)
         return Rect(
             yaml_node.get(YAML_LEFT, 0),
             yaml_node.get(YAML_TOP, 0),
@@ -97,7 +96,7 @@ class Rect(pygame.Rect):
         )
 
     @staticmethod
-    def get_default_star(size):
+    def get_default_star(size) -> 'Rect':
         return Rect(
             size[0] / 2 - min(size) / 4,
             size[1] / 2 - min(size) / 4,
@@ -106,7 +105,7 @@ class Rect(pygame.Rect):
         )
 
     @staticmethod
-    def get_default_spot(size):
+    def get_default_spot(size) -> 'Rect':
         default_star = Rect.get_default_star(size)
         return Rect(
             default_star.left + default_star.width // 4,
@@ -124,12 +123,13 @@ class StarGeneratorState:
         star: Rect = Rect.get_default_star(DEFAULT_SIZE),
         spot: Rect = Rect.get_default_spot(DEFAULT_SIZE)
     ):
+        self._logger = logging.getLogger("transit_cam.StarGeneratorState")
         self.done = False
         self.screen_size = screen_size
         self.pressed_keys = dict()
         self.screen = None
         self.framed = True
-        
+
         self.star = star
         self.spot = spot
         self.pulsating = False
@@ -200,138 +200,137 @@ class StarGeneratorState:
                 self.screen_size, pygame.RESIZABLE | pygame.NOFRAME)
 
     def toggle_frame(self):
-        print('Toggling frame')
+        self._logger.debug('Toggling frame')
         self.framed = not self.framed
         self.update_screen()
         self.save_state()
 
     def increase_amplitude(self):
-        print('Increasing amplitude')
+        self._logger.debug('Increasing amplitude')
         self.amplitude += SIZE_STEP
         self.save_state()
 
     def reset_amplitude(self):
-        print('Resetting amplitude')
+        self._logger.debug('Resetting amplitude')
         self.amplitude = 20
         self.save_state()
 
     def decrease_amplitude(self):
-        print('Decreasing amplitude')
+        self._logger.debug('Decreasing amplitude')
         if self.amplitude > SIZE_STEP:
             self.amplitude -= SIZE_STEP
         self.save_state()
 
     def toggle_pulsation(self):
-        print('Toggling pulsation')
+        self._logger.debug('Toggling pulsation')
         self.pulsating = not self.pulsating
         self.save_state()
 
     def toggle_spot(self):
-        print('Toggling pulsation')
+        self._logger.debug('Toggling pulsation')
         self.spot_visible = not self.spot_visible
         self.save_state()
 
     def reduce_star(self):
-        print('Reducing star')
+        self._logger.debug('Reducing star')
         self.star = self.star.reduced(SIZE_STEP)
         self.save_state()
 
     def enlarge_star(self):
-        print('Enlarging star')
+        self._logger.debug('Enlarging star')
         self.star = self.star.enlarged(SIZE_STEP)
         self.save_state()
 
     def widen_star(self):
-        print('Widening star')
+        self._logger.debug('Widening star')
         self.star = self.star.widened(SIZE_STEP)
         self.save_state()
 
     def narrow_star(self):
-        print('Narrowing star')
+        self._logger.debug('Narrowing star')
         self.star = self.star.narrowed(SIZE_STEP)
         self.save_state()
 
     def reduce_spot(self):
-        print('Reducing spot')
+        self._logger.debug('Reducing spot')
         self.spot = self.spot.reduced(SIZE_STEP)
         self.save_state()
 
     def enlarge_spot(self):
-        print('Enlarging spot')
+        self._logger.debug('Enlarging spot')
         self.spot = self.spot.enlarged(SIZE_STEP)
         self.save_state()
 
     def widen_spot(self):
-        print('Widening spot')
+        self._logger.debug('Widening spot')
         self.spot = self.spot.widened(SIZE_STEP)
         self.save_state()
 
     def narrow_spot(self):
-        print('Narrowing spot')
+        self._logger.debug('Narrowing spot')
         self.spot = self.spot.narrowed(SIZE_STEP)
         self.save_state()
 
     def move_spot_left(self):
-        print('Moving spot left')
+        self._logger.debug('Moving spot left')
         if self.spot.left > 2 * SIZE_STEP:
             self.spot.left -= 2 * SIZE_STEP
         self.save_state()
 
     def move_spot_right(self):
-        print('Moving spot right')
+        self._logger.debug('Moving spot right')
         if self.spot.right < self.screen_size[0] - 2 * SIZE_STEP:
             self.spot.left += 2 * SIZE_STEP
         self.save_state()
 
     def move_spot_up(self):
-        print('Moving spot up')
+        self._logger.debug('Moving spot up')
         if self.spot.top > 2 * SIZE_STEP:
             self.spot.top -= 2 * SIZE_STEP
         self.save_state()
 
     def move_spot_down(self):
-        print('Moving spot down')
+        self._logger.debug('Moving spot down')
         if self.spot.bottom < self.screen_size[1] - 2 * SIZE_STEP:
             self.spot.top += 2 * SIZE_STEP
         self.save_state()
 
     def reset_star(self):
-        print('Resetting star')
+        self._logger.debug('Resetting star')
         self.star = Rect.get_default_star(self.screen_size)
         self.save_state()
 
     def reset_spot(self):
-        print('Resetting spot')
+        self._logger.debug('Resetting spot')
         self.spot = Rect.get_default_spot(self.screen_size)
         self.save_state()
 
     def make_star_round(self):
-        print('Rounding star')
+        self._logger.debug('Rounding star')
         self.star = self.star.rounded()
         self.save_state()
 
     def make_spot_round(self):
-        print('Rounding spot')
+        self._logger.debug('Rounding spot')
         self.spot = self.spot.rounded()
         self.save_state()
 
-    def handle_key_event(self, key: int | None, key_mod: int, pressed_down=True):
-        if key is not None:
-            if pressed_down:
-                # if value contains the NUM pad modifier, remove it,
-                # because the following code in this method compares
-                # against values without NUM pad modifier.
-                key_mod -= (key_mod & pygame.KMOD_NUM)
-                print('Pressed key {} with value {}'.format(key, key_mod))
-                self.pressed_keys[key] = key_mod
-            else:
-                print('Released key {}'.format(key))
-                if key in self.pressed_keys.keys():
-                    del self.pressed_keys[key]
+    def handle_key_up_event(self, key: int) -> None:
+        self._logger.debug('Released key %s', key)
+        if key in self.pressed_keys.keys():
+            del self.pressed_keys[key]
+        self.trigger_key_events()
 
-        #
-        # Execution
-        #
+    def handle_key_down_event(self, key: int, key_mod: int):
+        # if value contains the NUM pad modifier, remove it,
+        # because the code in trigger_key_events compares
+        # against values without NUM pad modifier.
+        key_mod -= (key_mod & pygame.KMOD_NUM)
+        self._logger.debug('Pressed key %s with value %s', key, key_mod)
+        self.pressed_keys[key] = key_mod
+        self.trigger_key_events()
+
+    def trigger_key_events(self) -> None:
         # if pressed escape, quit
         if self.pressed_keys.get(pygame.K_ESCAPE, None) in [0]:
             self.done = True
@@ -450,7 +449,6 @@ class StarGeneratorState:
     @staticmethod
     def sine_rect(base_rect, amplitudes, time, period):
         ratio = 0.5 * sin(2 * pi * time / period)
-        print(time, ratio)
         return Rect(
             base_rect.left - amplitudes[0] * ratio,
             base_rect.top - amplitudes[1] * ratio,
