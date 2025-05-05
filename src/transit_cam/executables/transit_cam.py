@@ -113,7 +113,7 @@ class SimStatus(object):
             yaml_node.get(YAML_HEIGHT, 0),
             )
         
-    def log(self, message):
+    def log(self, message: str) -> None:
         if self.logging:
             if self.out_file is not None: 
                 self.out_file.write(message)
@@ -175,7 +175,11 @@ class SimStatus(object):
             pygame.draw.rect(self.screen, BLUE, [self.index, plot_rect.top + scaled[2], 1, 2])    
 
 
-def handle_key_event(key, value, sim_status):
+def handle_key_event(
+    key: int, 
+    value: int, 
+    sim_status: SimStatus
+) -> bool:
     speed = 1
     if value & pygame.KMOD_SHIFT:
         speed = 10
@@ -222,7 +226,7 @@ def handle_key_event(key, value, sim_status):
     return False
 
 
-def compute_sum(surface):
+def compute_sum(surface: pygame.Surface) -> tuple[float, float, float]:
     pixel_array = pygame.PixelArray(surface)
     rect = pixel_array.shape
     num_pixels = rect[0] * rect[1]
@@ -254,7 +258,7 @@ def main():
     # init the clock
     clock = pygame.time.Clock()
     
-    pressed_keys = dict()
+    pressed_keys: dict[int, int] = dict()
     
     sim_status = SimStatus(CAM_RECT, plot_rect, screen, roi, logging, datetime.datetime.now())
     sim_status.load_status()
@@ -303,7 +307,7 @@ def main():
 
         # --- Drawing code
         screen.blit(img, sim_status.cam_rect)
-        subsurface = screen.subsurface(sim_status.roi)
+        subsurface: pygame.Surface = screen.subsurface(sim_status.roi)
         new_sum = compute_sum(subsurface)
         sim_status.log('{} {}\n'.format(timestamp, new_sum))
         sim_status.draw_roi()

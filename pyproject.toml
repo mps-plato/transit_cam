@@ -11,6 +11,7 @@ dependencies = [
 
 [project.scripts]
 star-generator = "transit_cam.executables.star_generator:main"
+transit-cam = "transit_cam.executables.transit_cam:main"
 
 [build-system]
 requires = ["hatchling"]
