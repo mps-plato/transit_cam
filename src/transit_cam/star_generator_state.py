@@ -114,8 +114,8 @@ class Rect(pygame.Rect):
             default_star.height // 2,
         )
 
-
 class StarGeneratorState:
+    _logger = logging.getLogger("transit_cam.StarGeneratorState")
 
     def __init__(
         self,
@@ -123,7 +123,6 @@ class StarGeneratorState:
         star: Rect = Rect.get_default_star(DEFAULT_SIZE),
         spot: Rect = Rect.get_default_spot(DEFAULT_SIZE)
     ):
-        self._logger = logging.getLogger("transit_cam.StarGeneratorState")
         self.done = False
         self.screen_size = screen_size
         self.pressed_keys = dict()
@@ -187,8 +186,10 @@ class StarGeneratorState:
     @staticmethod
     def load_state():
         if not os.path.isfile(CONFIG_FILE):
+            StarGeneratorState._logger.info("No config file found. Creating a blank StarGeneratorState.")
             return StarGeneratorState()
         with open(CONFIG_FILE, 'r') as in_file:
+            StarGeneratorState._logger.info("Loading StarGeneratorState from file %s.", CONFIG_FILE)
             return StarGeneratorState.from_yaml(yaml.load(in_file, Loader=SafeLoader))
 
     def update_screen(self):

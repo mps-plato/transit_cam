@@ -61,7 +61,6 @@ def _parse_args() -> str:
     return args.log_level
 
 def _init_logging(log_level: str) -> None:
-    logging.INFO
     logging_config["loggers"]["transit_cam"]["level"] = log_level.upper()
     logging_config["handlers"]["console"]["level"] = log_level.upper()
     logging.config.dictConfig(logging_config)
