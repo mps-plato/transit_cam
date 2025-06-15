@@ -18,6 +18,7 @@ class TestKeyRegistryImpl(unittest.TestCase):
         self.mock_key_event = MagicMock()
         self.mock_key_event.type = pygame.KEYDOWN
         self.mock_key_event.key = pygame.K_a
+        self.mock_key_event.mod = 0
         self.sut = KeyRegistryImpl()
 
     def test_that_the_callback_for_key_a_is_called_when_the_event_is_KEYDOWN_K_a(self):
@@ -59,3 +60,32 @@ class TestKeyRegistryImpl(unittest.TestCase):
         self.mock_key_event.type = pygame.MOUSEMOTION
         with self.assertRaises(UnknownEventError):
             self.sut.handle_key_event(self.mock_key_event)
+
+    def test_that_the_callback_for_key_K_a_that_requires_KMOD_SHIFT_is_NOT_called_when_the_event_is_KEYDOWN_K_a(self):
+        mock_callback = MagicMock()
+        self.mock_key_event.type = pygame.KEYDOWN
+        self.mock_key_event.key = pygame.K_a
+                
+        self.sut.register_key(pygame.K_a, mock_callback, required_modifiers=pygame.KMOD_SHIFT)
+        self.sut.handle_key_event(self.mock_key_event)
+        mock_callback.assert_not_called()
+
+    def test_that_the_callback_for_key_K_a_that_requires_MOD_SHIFT_is_called_when_the_event_is_KEYDOWN_K_a_with_KMOD_SHIFT(self):
+        mock_callback = MagicMock()
+        self.mock_key_event.type = pygame.KEYDOWN
+        self.mock_key_event.key = pygame.K_a
+        self.mock_key_event.mod = pygame.KMOD_SHIFT
+                
+        self.sut.register_key(pygame.K_a, mock_callback, required_modifiers=pygame.KMOD_SHIFT)
+        self.sut.handle_key_event(self.mock_key_event)
+        mock_callback.assert_called_once_with()
+
+    def test_that_the_callback_for_key_K_a_that_requires_MOD_SHIFT_is_called_when_the_event_is_KEYDOWN_K_a_with_KMOD_LSHIFT(self):
+        mock_callback = MagicMock()
+        self.mock_key_event.type = pygame.KEYDOWN
+        self.mock_key_event.key = pygame.K_a
+        self.mock_key_event.mod = pygame.KMOD_LSHIFT
+                
+        self.sut.register_key(pygame.K_a, mock_callback, required_modifiers=pygame.KMOD_SHIFT)
+        self.sut.handle_key_event(self.mock_key_event)
+        mock_callback.assert_called_once_with()
