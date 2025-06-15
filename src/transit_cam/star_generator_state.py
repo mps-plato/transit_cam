@@ -114,6 +114,7 @@ class Rect(pygame.Rect):
             default_star.height // 2,
         )
 
+
 class StarGeneratorState:
     _logger = logging.getLogger("transit_cam.StarGeneratorState")
 
@@ -151,6 +152,18 @@ class StarGeneratorState:
         self._screen = screen
         self.screen_size = screen.get_size()
         self.update_regions(self.screen_size)
+
+    def on_event(self, event: pygame.event.Event) -> None:
+        if event.type == pygame.QUIT:
+            print("User asked to quit")
+            self.done = True
+        elif event.type == pygame.KEYDOWN:
+            self.handle_key_down_event(event.key, event.mod)
+        elif event.type == pygame.KEYUP:
+            self.handle_key_up_event(event.key)
+        elif event.type == pygame.VIDEORESIZE:
+            print('Video resized to {}'.format(event.size))
+            self.screen = pygame.display.set_mode(event.size, pygame.RESIZABLE)
 
     def to_yaml(self):
         return {
@@ -320,7 +333,7 @@ class StarGeneratorState:
         self._logger.debug('Released key %s', key)
         if key in self.pressed_keys.keys():
             del self.pressed_keys[key]
-        self.trigger_key_events()
+        self.on_loop()
 
     def handle_key_down_event(self, key: int, key_mod: int):
         # if value contains the NUM pad modifier, remove it,
@@ -329,9 +342,9 @@ class StarGeneratorState:
         key_mod -= (key_mod & pygame.KMOD_NUM)
         self._logger.debug('Pressed key %s with value %s', key, key_mod)
         self.pressed_keys[key] = key_mod
-        self.trigger_key_events()
+        self.on_loop()
 
-    def trigger_key_events(self) -> None:
+    def on_loop(self) -> None:
         # if pressed escape, quit
         if self.pressed_keys.get(pygame.K_ESCAPE, None) in [0]:
             self.done = True

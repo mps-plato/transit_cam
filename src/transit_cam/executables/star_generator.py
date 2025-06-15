@@ -27,19 +27,9 @@ def main():
     # main loop    
     while not sim_state.done:
         for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                print("User asked to quit")
-                sim_state.done = True            
-            elif event.type == pygame.KEYDOWN:
-                sim_state.handle_key_down_event(event.key, event.mod)
-            elif event.type == pygame.KEYUP:
-                sim_state.handle_key_up_event(event.key)
-            elif event.type == pygame.VIDEORESIZE:
-                print('Video resized to {}'.format(event.size))
-                sim_state.screen = pygame.display.set_mode(event.size, pygame.RESIZABLE)
+            sim_state.on_event(event)
 
-        sim_state.trigger_key_events()
-
+        sim_state.on_loop()
         sim_state.draw_star(pygame.time.get_ticks())
 
         # update the screen
