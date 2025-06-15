@@ -66,7 +66,7 @@ class TestKeyRegistryImpl(unittest.TestCase):
         self.mock_key_event.type = pygame.KEYDOWN
         self.mock_key_event.key = pygame.K_a
                 
-        self.sut.register_key(pygame.K_a, mock_callback, required_modifiers=pygame.KMOD_SHIFT)
+        self.sut.register_key(pygame.K_a, mock_callback, required_modifiers=[pygame.KMOD_SHIFT])
         self.sut.handle_key_event(self.mock_key_event)
         mock_callback.assert_not_called()
 
@@ -76,7 +76,7 @@ class TestKeyRegistryImpl(unittest.TestCase):
         self.mock_key_event.key = pygame.K_a
         self.mock_key_event.mod = pygame.KMOD_SHIFT
                 
-        self.sut.register_key(pygame.K_a, mock_callback, required_modifiers=pygame.KMOD_SHIFT)
+        self.sut.register_key(pygame.K_a, mock_callback, required_modifiers=[pygame.KMOD_SHIFT])
         self.sut.handle_key_event(self.mock_key_event)
         mock_callback.assert_called_once_with()
 
@@ -86,6 +86,17 @@ class TestKeyRegistryImpl(unittest.TestCase):
         self.mock_key_event.key = pygame.K_a
         self.mock_key_event.mod = pygame.KMOD_LSHIFT
                 
-        self.sut.register_key(pygame.K_a, mock_callback, required_modifiers=pygame.KMOD_SHIFT)
+        self.sut.register_key(pygame.K_a, mock_callback, required_modifiers=[pygame.KMOD_SHIFT])
         self.sut.handle_key_event(self.mock_key_event)
         mock_callback.assert_called_once_with()
+
+    def test_that_the_callback_for_key_K_a_that_requires_MOD_SHIFT_and_MOD_CTRL_is_called_when_the_event_is_KEYDOWN_K_a_with_KMOD_LSHIFT_and_KMOD_RCTRL(self):
+        mock_callback = MagicMock()
+        self.mock_key_event.type = pygame.KEYDOWN
+        self.mock_key_event.key = pygame.K_a
+        self.mock_key_event.mod = pygame.KMOD_LSHIFT | pygame.KMOD_RCTRL
+                
+        self.sut.register_key(pygame.K_a, mock_callback, required_modifiers=[pygame.KMOD_SHIFT, pygame.KMOD_CTRL])
+        self.sut.handle_key_event(self.mock_key_event)
+        mock_callback.assert_called_once_with()
+    
