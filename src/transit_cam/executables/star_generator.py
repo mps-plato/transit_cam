@@ -28,7 +28,6 @@ def main():
     while not sim_state.done:
         for event in pygame.event.get():
             sim_state.on_event(event)
-
         sim_state.on_loop()
         sim_state.draw_star(pygame.time.get_ticks())
 

@@ -8,6 +8,7 @@ import yaml
 from yaml import SafeLoader
 
 from transit_cam.colors import BLACK, WHITE
+from transit_cam.key_events.key_registry import KeyRegistryImpl
 
 DEFAULT_SIZE = (900, 600)
 
@@ -130,12 +131,63 @@ class StarGeneratorState:
         self.screen = None
         self.framed = True
 
+        self._key_registry: KeyRegistryImpl = KeyRegistryImpl()
+
         self.star = star
         self.spot = spot
         self.pulsating = False
         self.spot_visible = False
         self.amplitude = 20
         self.period = 1000
+
+        self._reduce_star_is_active = False
+        self._increase_star_is_active = False
+        self._widen_star_is_active = False
+        self._narrow_star_is_active = False
+        self._init_key_bindings()
+
+    def _init_key_bindings(self) -> None:
+        def set_done():
+            self.done = True
+        self._key_registry.register_key(pygame.K_ESCAPE, set_done)
+
+        def start_reduce_star():
+            self._reduce_star_is_active = True
+
+        def stop_reduce_star():
+            self._reduce_star_is_active = False
+
+        self._key_registry.register_key(
+            pygame.K_DOWN, start_reduce_star, stop_reduce_star)
+
+        def start_increase_star():
+            self._increase_star_is_active = True
+
+        def stop_increase_star():
+            self._increase_star_is_active = False
+
+        self._key_registry.register_key(
+            pygame.K_UP, start_increase_star, stop_increase_star)
+
+        def start_widen_star():
+            self._widen_star_is_active = True
+
+        def stop_widen_star():
+            self._widen_star_is_active = False
+
+        self._key_registry.register_key(
+            pygame.K_LEFT, start_widen_star, stop_widen_star)
+
+        def start_narrow_star():
+            self._narrow_star_is_active = True
+
+        def stop_narrow_star():
+            self._narrow_star_is_active = False
+
+        self._key_registry.register_key(
+            pygame.K_RIGHT, start_narrow_star, stop_narrow_star)
+
+        self._key_registry.register_key(pygame.K_r, self.make_star_round)
 
     @property
     def screen(self):
@@ -153,14 +205,13 @@ class StarGeneratorState:
         self.screen_size = screen.get_size()
         self.update_regions(self.screen_size)
 
-    def on_event(self, event: pygame.event.Event) -> None:
+    def on_event(self, event: pygame.event.Event) -> None:                
         if event.type == pygame.QUIT:
             print("User asked to quit")
             self.done = True
-        elif event.type == pygame.KEYDOWN:
-            self.handle_key_down_event(event.key, event.mod)
-        elif event.type == pygame.KEYUP:
-            self.handle_key_up_event(event.key)
+        elif event.type == pygame.KEYDOWN or event.type == pygame.KEYUP:
+            self._logger.debug("event.mod: %d", event.mod)
+            self._key_registry.handle_key_event(event)
         elif event.type == pygame.VIDEORESIZE:
             print('Video resized to {}'.format(event.size))
             self.screen = pygame.display.set_mode(event.size, pygame.RESIZABLE)
@@ -199,10 +250,12 @@ class StarGeneratorState:
     @staticmethod
     def load_state():
         if not os.path.isfile(CONFIG_FILE):
-            StarGeneratorState._logger.info("No config file found. Creating a blank StarGeneratorState.")
+            StarGeneratorState._logger.info(
+                "No config file found. Creating a blank StarGeneratorState.")
             return StarGeneratorState()
         with open(CONFIG_FILE, 'r') as in_file:
-            StarGeneratorState._logger.info("Loading StarGeneratorState from file %s.", CONFIG_FILE)
+            StarGeneratorState._logger.info(
+                "Loading StarGeneratorState from file %s.", CONFIG_FILE)
             return StarGeneratorState.from_yaml(yaml.load(in_file, Loader=SafeLoader))
 
     def update_screen(self):
@@ -212,12 +265,6 @@ class StarGeneratorState:
         else:
             self.screen = pygame.display.set_mode(
                 self.screen_size, pygame.RESIZABLE | pygame.NOFRAME)
-
-    def toggle_frame(self):
-        self._logger.debug('Toggling frame')
-        self.framed = not self.framed
-        self.update_screen()
-        self.save_state()
 
     def increase_amplitude(self):
         self._logger.debug('Increasing amplitude')
@@ -329,54 +376,15 @@ class StarGeneratorState:
         self.spot = self.spot.rounded()
         self.save_state()
 
-    def handle_key_up_event(self, key: int) -> None:
-        self._logger.debug('Released key %s', key)
-        if key in self.pressed_keys.keys():
-            del self.pressed_keys[key]
-        self.on_loop()
-
-    def handle_key_down_event(self, key: int, key_mod: int):
-        # if value contains the NUM pad modifier, remove it,
-        # because the code in trigger_key_events compares
-        # against values without NUM pad modifier.
-        key_mod -= (key_mod & pygame.KMOD_NUM)
-        self._logger.debug('Pressed key %s with value %s', key, key_mod)
-        self.pressed_keys[key] = key_mod
-        self.on_loop()
-
     def on_loop(self) -> None:
-        # if pressed escape, quit
-        if self.pressed_keys.get(pygame.K_ESCAPE, None) in [0]:
-            self.done = True
-        # if pressed Alt+F4, quit
-        elif self.pressed_keys.get(pygame.K_F4, None) in [pygame.KMOD_RALT, pygame.KMOD_LALT]:
-            self.done = True
-        #
-        # Frame
-        #
-        # if pressed 'f', toggle frame
-        elif self.pressed_keys.get(pygame.K_f, None) == 0:
-            self.toggle_frame()
-            del self.pressed_keys[pygame.K_f]
-        #
-        # Star size
-        #
-        # if pressed down, reduce size
-        elif self.pressed_keys.get(pygame.K_DOWN, None) == 0:
+        if self._reduce_star_is_active:
             self.reduce_star()
-        # if pressed up, increase size
-        elif self.pressed_keys.get(pygame.K_UP, None) == 0:
+        elif self._increase_star_is_active:
             self.enlarge_star()
-        # if pressed left, increase width
-        elif self.pressed_keys.get(pygame.K_LEFT, None) == 0:
+        elif self._widen_star_is_active:
             self.widen_star()
-        # if pressed right, reduce width
-        elif self.pressed_keys.get(pygame.K_RIGHT, None) == 0:
+        elif self._narrow_star_is_active:
             self.narrow_star()
-        # if pressed 'r', make round
-        elif self.pressed_keys.get(pygame.K_r, None) == 0:
-            self.make_star_round()
-            del self.pressed_keys[pygame.K_r]
         # if pressed 'Ctrl+Shift+Down', reset size
         elif self.pressed_keys.get(pygame.K_DOWN, None) in [pygame.KMOD_LCTRL | pygame.KMOD_LSHIFT,
                                                             pygame.KMOD_RCTRL | pygame.KMOD_RSHIFT]:
