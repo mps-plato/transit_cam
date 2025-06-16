@@ -43,9 +43,9 @@ class KeyRegistryImpl(KeyRegistry, KeyEventHandler):
 
     def __init__(self) -> None:
         self._key_down_any_modifiers_map: dict[int, Callable[[], None]] = {}
-        self._key_down_with_modifiers_actions: list[_KeyWithModifiersAction] = [
-        ]
-        self._key_up_map: dict[int, Callable[[], None]] = {}
+        self._key_down_with_modifiers_map: dict[int,
+                                                list[_KeyWithModifiersAction]] = {}
+        self._key_up_map: dict[int, list[Callable[[], None]]] = {}
 
     def register_key(
         self,
@@ -57,11 +57,15 @@ class KeyRegistryImpl(KeyRegistry, KeyEventHandler):
         if len(required_modifiers) == 0:
             self._key_down_any_modifiers_map[key] = action
         else:
-            self._key_down_with_modifiers_actions.append(
+            if key not in self._key_down_with_modifiers_map:
+                self._key_down_with_modifiers_map[key] = []
+            self._key_down_with_modifiers_map[key].append(
                 _KeyWithModifiersAction(key, required_modifiers, action))
         if key_up_action is None:
             return
-        self._key_up_map[key] = key_up_action
+        if key not in self._key_up_map:
+            self._key_up_map[key] = []
+        self._key_up_map[key].append(key_up_action)
 
     def handle_key_event(self, event: Event) -> None:
         if event.type == pygame.KEYUP:
@@ -76,17 +80,21 @@ class KeyRegistryImpl(KeyRegistry, KeyEventHandler):
         key: int = event.key
         if key not in self._key_up_map:
             return
-        self._key_up_map[key]()
+        for action in self._key_up_map[key]:
+            action()
 
     def _handle_keydown_event(self, event: Event) -> None:
         key: int = event.key
-        if key in self._key_down_any_modifiers_map:
-            self._key_down_any_modifiers_map[key]()
-            return
         mod: int = event.mod
-        for key_with_mod_action in self._key_down_with_modifiers_actions:
-            if key_with_mod_action.key != key:
-                continue
+        if mod != 0 and key in self._key_down_with_modifiers_map:
+            self._handle_keydown_with_mod_event(key, mod)
+            return
+        if key not in self._key_down_any_modifiers_map:
+            return
+        self._key_down_any_modifiers_map[key]()
+
+    def _handle_keydown_with_mod_event(self, key: int, mod: int) -> None:
+        for key_with_mod_action in self._key_down_with_modifiers_map[key]:
             if not self._has_required_modifiers(key_with_mod_action.modifiers, mod):
                 continue
             key_with_mod_action.action()

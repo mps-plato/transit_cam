@@ -144,6 +144,9 @@ class StarGeneratorState:
         self._increase_star_is_active = False
         self._widen_star_is_active = False
         self._narrow_star_is_active = False
+        self._reduce_spot_is_active = False
+        self._increase_spot_is_active = False
+
         self._init_key_bindings()
 
     def _init_key_bindings(self) -> None:
@@ -189,6 +192,33 @@ class StarGeneratorState:
 
         self._key_registry.register_key(pygame.K_r, self.make_star_round)
 
+        self._key_registry.register_key(
+            pygame.K_DOWN, self.reset_star,
+            required_modifiers=[pygame.KMOD_SHIFT, pygame.KMOD_CTRL]
+        )
+
+        def start_reduce_spot():
+            self._reduce_spot_is_active = True
+
+        def stop_reduce_spot():
+            self._reduce_spot_is_active = False
+
+        self._key_registry.register_key(
+            pygame.K_DOWN, start_reduce_spot, stop_reduce_spot,
+            required_modifiers=[pygame.KMOD_ALT]
+        )
+
+        def start_increase_spot():
+            self._increase_spot_is_active = True
+
+        def stop_increase_spot():
+            self._increase_spot_is_active = False
+
+        self._key_registry.register_key(
+            pygame.K_UP, start_increase_spot, stop_increase_spot,
+            required_modifiers=[pygame.KMOD_ALT]
+        )
+
     @property
     def screen(self):
         return self._screen
@@ -205,12 +235,11 @@ class StarGeneratorState:
         self.screen_size = screen.get_size()
         self.update_regions(self.screen_size)
 
-    def on_event(self, event: pygame.event.Event) -> None:                
+    def on_event(self, event: pygame.event.Event) -> None:
         if event.type == pygame.QUIT:
             print("User asked to quit")
             self.done = True
         elif event.type == pygame.KEYDOWN or event.type == pygame.KEYUP:
-            self._logger.debug("event.mod: %d", event.mod)
             self._key_registry.handle_key_event(event)
         elif event.type == pygame.VIDEORESIZE:
             print('Video resized to {}'.format(event.size))
@@ -385,20 +414,12 @@ class StarGeneratorState:
             self.widen_star()
         elif self._narrow_star_is_active:
             self.narrow_star()
-        # if pressed 'Ctrl+Shift+Down', reset size
-        elif self.pressed_keys.get(pygame.K_DOWN, None) in [pygame.KMOD_LCTRL | pygame.KMOD_LSHIFT,
-                                                            pygame.KMOD_RCTRL | pygame.KMOD_RSHIFT]:
-            self.reset_star()
-            del self.pressed_keys[pygame.K_DOWN]
-        #
-        # Spot size
-        #
-        # if pressed Alt+down, reduce spot size
-        elif self.pressed_keys.get(pygame.K_DOWN, None) in [pygame.KMOD_LALT, pygame.KMOD_RALT]:
+
+        if self._reduce_spot_is_active:
             self.reduce_spot()
-        # if pressed Alt+up, increase spot size
-        elif self.pressed_keys.get(pygame.K_UP, None) in [pygame.KMOD_LALT, pygame.KMOD_RALT]:
+        elif self._increase_spot_is_active:
             self.enlarge_spot()
+        
         # if pressed Alt+left, increase spot width
         elif self.pressed_keys.get(pygame.K_LEFT, None) in [pygame.KMOD_LALT, pygame.KMOD_RALT]:
             self.widen_spot()
