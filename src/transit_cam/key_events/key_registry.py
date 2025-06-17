@@ -2,6 +2,7 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+import logging
 from typing import Callable, Optional
 
 import pygame
@@ -40,6 +41,8 @@ class _KeyWithModifiersAction:
 
 
 class KeyRegistryImpl(KeyRegistry, KeyEventHandler):
+
+    _logger = logging.getLogger("transit_cam.KeyRegistryImpl")
 
     def __init__(self) -> None:
         self._key_down_any_modifiers_map: dict[int, Callable[[], None]] = {}
@@ -86,19 +89,23 @@ class KeyRegistryImpl(KeyRegistry, KeyEventHandler):
     def _handle_keydown_event(self, event: Event) -> None:
         key: int = event.key
         mod: int = event.mod
+        self._logger.debug("Handling key %d with mod %d", key, mod)
         if mod != 0 and key in self._key_down_with_modifiers_map:
-            self._handle_keydown_with_mod_event(key, mod)
-            return
+            action: Callable[[], None] | None = self._get_keydown_with_mod_event(
+                key, mod
+            )
+            if action is not None:
+                action()
+                return
         if key not in self._key_down_any_modifiers_map:
             return
         self._key_down_any_modifiers_map[key]()
 
-    def _handle_keydown_with_mod_event(self, key: int, mod: int) -> None:
+    def _get_keydown_with_mod_event(self, key: int, mod: int) -> None | Callable[[], None]:
         for key_with_mod_action in self._key_down_with_modifiers_map[key]:
             if not self._has_required_modifiers(key_with_mod_action.modifiers, mod):
                 continue
-            key_with_mod_action.action()
-            return
+            return key_with_mod_action.action
 
     def _has_required_modifiers(self, required_modifiers: list[int], actual_combined_modifiers: int) -> bool:
         for req_mod in required_modifiers:
