@@ -21,8 +21,7 @@ def main():
 
     pygame.init()
     py_camera.init(None)
-    for camera in py_camera.list_cameras():
-        print(camera)
+    
     camera = py_camera.Camera(py_camera.list_cameras()[0])
     camera.start()
 

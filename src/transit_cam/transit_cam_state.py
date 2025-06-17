@@ -19,7 +19,7 @@ YAML_TOP = 'top'
 YAML_WIDTH = 'width'
 YAML_HEIGHT = 'height'
 YAML_ROI = 'roi'
-YAML_OUT_FILENAME = 'out_filename'
+YAML_OUTPUT_FOLDER = 'output_folder'
 YAML_MONOCHROME = 'monochrome'
 
 NORMAL_SPEED = 1
@@ -299,7 +299,7 @@ class TransitCamState:
 
     def to_yaml(self):
         return {
-            YAML_OUT_FILENAME: self.output_folder,
+            YAML_OUTPUT_FOLDER: str(self.output_folder),
             YAML_ROI: self.rect_to_yaml(self.roi),
             YAML_MONOCHROME: self.monochrome
         }
@@ -308,7 +308,7 @@ class TransitCamState:
         if YAML_ROI in yaml_node.keys():
             self.roi = self.rect_from_yaml(yaml_node[YAML_ROI])
         self.output_folder = Path(yaml_node.get(
-            YAML_OUT_FILENAME, self.output_folder))
+            YAML_OUTPUT_FOLDER, self.output_folder))
         self.monochrome = yaml_node.get(YAML_MONOCHROME, self.monochrome)
 
     def toggle_monochrome(self):
@@ -326,8 +326,9 @@ class TransitCamState:
 
     def begin_record(self):
         now_str: str = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        filename = f"{now_str}_transit_cam.log"
-        self.output_file_handle = open(self.output_folder / filename, 'w')
+        file_path = self.output_folder / f"{now_str}_transit_cam.log"
+        self._logger.info("Recording light intensity in %s", file_path)
+        self.output_file_handle = open(file_path, 'w')
         self.recording = True
         self.last_recording_change = datetime.datetime.now()
 
