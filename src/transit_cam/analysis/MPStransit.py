@@ -4,14 +4,10 @@
 # by Rene' Heller, heller@mps.mpg.de, Max Planck Institute for Solar System Research, Goettingen, Germany
 # created 2017-04-04 (MPS), last modification 2017-04-05
 
-#import numpy
 from pylab import *
 import re
 
-#seterr(all='warn')  # one message is prompted in the terminal, for an error occuring repeatedly there is no new message
 seterr(all='ignore') # nothing is prompted
-#seterr(all='raise') # Stops the program and points at the error
-#seterr(all='print') # seems to be the default mode; prints an error message in the terminal but doesn't stop the program
 
 def analyze_transit(times, brightnesses):
     return (mean(times), min(brightnesses))
@@ -106,18 +102,7 @@ def main():
     brightness_R = array(brightness_R_list)
     brightness_G = array(brightness_G_list)
     brightness_B = array(brightness_B_list)
-    
-    """
-    figure(1)
-    clf()
-    plt1 = subplot(111)
-    plot(time, brightness_R, color="red")
-    plot(time, brightness_G, color="green")
-    plot(time, brightness_B, color="blue")
-    show()
-    draw()
-    savefig("RGB_crappy.png", dpi=400)
-    """
+
     
     time = array(time)
     lightcurve = brightness_B+brightness_G+brightness_R
