@@ -8,6 +8,7 @@ import yaml
 from yaml import SafeLoader
 
 from transit_cam.colors import BLACK, WHITE
+from transit_cam.key_events.key_registry import KeyRegistryImpl
 
 DEFAULT_SIZE = (900, 600)
 
@@ -130,12 +131,214 @@ class StarGeneratorState:
         self.screen = None
         self.framed = True
 
+        self._key_registry: KeyRegistryImpl = KeyRegistryImpl()
+
         self.star = star
         self.spot = spot
         self.pulsating = False
         self.spot_visible = False
         self.amplitude = 20
         self.period = 1000
+
+        self._reduce_star_is_active = False
+        self._increase_star_is_active = False
+        self._widen_star_is_active = False
+        self._narrow_star_is_active = False
+        self._reduce_spot_is_active = False
+        self._increase_spot_is_active = False
+        self._widen_spot_is_active = False
+        self._narrow_spot_is_active = False
+        self._move_spot_up_is_active = False
+        self._move_spot_down_is_active = False
+        self._move_spot_left_is_active = False
+        self._move_spot_right_is_active = False
+        self._increase_oscillation_amplitude_is_active = False
+        self._decrease_oscillation_amplitude_is_active = False
+
+        self._init_key_bindings()
+
+    def _init_key_bindings(self) -> None:
+        def set_done():
+            self.done = True
+        self._key_registry.register_key(pygame.K_ESCAPE, set_done)
+
+        self._init_star_key_bindings()
+        self._init_spot_key_bindings()
+        self._init_oscillation_key_bindings()
+
+    def _init_star_key_bindings(self) -> None:
+        def start_reduce_star():
+            self._reduce_star_is_active = True
+
+        def stop_reduce_star():
+            self._reduce_star_is_active = False
+
+        self._key_registry.register_key(
+            pygame.K_DOWN, start_reduce_star, stop_reduce_star)
+
+        def start_increase_star():
+            self._increase_star_is_active = True
+
+        def stop_increase_star():
+            self._increase_star_is_active = False
+
+        self._key_registry.register_key(
+            pygame.K_UP, start_increase_star, stop_increase_star)
+
+        def start_widen_star():
+            self._widen_star_is_active = True
+
+        def stop_widen_star():
+            self._widen_star_is_active = False
+
+        self._key_registry.register_key(
+            pygame.K_LEFT, start_widen_star, stop_widen_star)
+
+        def start_narrow_star():
+            self._narrow_star_is_active = True
+
+        def stop_narrow_star():
+            self._narrow_star_is_active = False
+
+        self._key_registry.register_key(
+            pygame.K_RIGHT, start_narrow_star, stop_narrow_star)
+
+        self._key_registry.register_key(pygame.K_r, self.make_star_round)
+
+        self._key_registry.register_key(
+            pygame.K_DOWN, self.reset_star,
+            required_modifiers=[pygame.KMOD_SHIFT, pygame.KMOD_CTRL]
+        )
+
+    def _init_spot_key_bindings(self) -> None:
+        def start_reduce_spot():
+            self._reduce_spot_is_active = True
+
+        def stop_reduce_spot():
+            self._reduce_spot_is_active = False
+
+        self._key_registry.register_key(
+            pygame.K_DOWN, start_reduce_spot, stop_reduce_spot,
+            required_modifiers=[pygame.KMOD_ALT]
+        )
+
+        def start_increase_spot():
+            self._increase_spot_is_active = True
+
+        def stop_increase_spot():
+            self._increase_spot_is_active = False
+
+        self._key_registry.register_key(
+            pygame.K_UP, start_increase_spot, stop_increase_spot,
+            required_modifiers=[pygame.KMOD_ALT]
+        )
+
+        def start_widen_spot():
+            self._widen_spot_is_active = True
+
+        def stop_widen_spot():
+            self._widen_spot_is_active = False
+
+        self._key_registry.register_key(
+            pygame.K_LEFT, start_widen_spot, stop_widen_spot,
+            required_modifiers=[pygame.KMOD_ALT]
+        )
+
+        def start_narrow_spot():
+            self._narrow_spot_is_active = True
+
+        def stop_narrow_spot():
+            self._narrow_spot_is_active = False
+
+        self._key_registry.register_key(
+            pygame.K_RIGHT, start_narrow_spot, stop_narrow_spot,
+            required_modifiers=[pygame.KMOD_ALT]
+        )
+
+        self._key_registry.register_key(
+            pygame.K_r, self.make_spot_round, required_modifiers=[pygame.KMOD_ALT])
+        self._key_registry.register_key(
+            pygame.K_DOWN, self.reset_spot,
+            required_modifiers=[
+                pygame.KMOD_ALT,
+                pygame.KMOD_CTRL,
+                pygame.KMOD_SHIFT
+            ]
+        )
+
+        def start_move_spot_up():
+            self._move_spot_up_is_active = True
+
+        def stop_move_spot_up():
+            self._move_spot_up_is_active = False
+
+        self._key_registry.register_key(
+            pygame.K_u, start_move_spot_up, stop_move_spot_up
+        )
+
+        def start_move_spot_down():
+            self._move_spot_down_is_active = True
+
+        def stop_move_spot_down():
+            self._move_spot_down_is_active = False
+
+        self._key_registry.register_key(
+            pygame.K_j, start_move_spot_down, stop_move_spot_down,
+        )
+
+        def start_move_spot_left():
+            self._move_spot_left_is_active = True
+
+        def stop_move_spot_left():
+            self._move_spot_left_is_active = False
+
+        self._key_registry.register_key(
+            pygame.K_h, start_move_spot_left, stop_move_spot_left,
+        )
+
+        def start_move_spot_right():
+            self._move_spot_right_is_active = True
+
+        def stop_move_spot_right():
+            self._move_spot_right_is_active = False
+
+        self._key_registry.register_key(
+            pygame.K_k, start_move_spot_right, stop_move_spot_right,
+        )
+
+        self._key_registry.register_key(
+            pygame.K_s, self.toggle_spot
+        )
+
+    def _init_oscillation_key_bindings(self):
+        def start_increase_amplitude():
+            self._increase_oscillation_amplitude_is_active = True
+
+        def stop_increase_amplitude():
+            self._increase_oscillation_amplitude_is_active = False
+
+        self._key_registry.register_key(
+            pygame.K_a, start_increase_amplitude, stop_increase_amplitude,
+            required_modifiers=[pygame.KMOD_SHIFT]
+        )
+
+        def start_decrease_amplitude():
+            self._decrease_oscillation_amplitude_is_active = True
+
+        def stop_decrease_amplitude():
+            self._decrease_oscillation_amplitude_is_active = False
+
+        self._key_registry.register_key(
+            pygame.K_a, start_decrease_amplitude, stop_decrease_amplitude
+        )
+
+        self._key_registry.register_key(
+            pygame.K_a, self.reset_amplitude,
+            required_modifiers=[pygame.KMOD_CTRL]
+        )
+        self._key_registry.register_key(
+            pygame.K_p, self.toggle_pulsation
+        )
 
     @property
     def screen(self):
@@ -157,10 +360,8 @@ class StarGeneratorState:
         if event.type == pygame.QUIT:
             print("User asked to quit")
             self.done = True
-        elif event.type == pygame.KEYDOWN:
-            self.handle_key_down_event(event.key, event.mod)
-        elif event.type == pygame.KEYUP:
-            self.handle_key_up_event(event.key)
+        elif event.type == pygame.KEYDOWN or event.type == pygame.KEYUP:
+            self._key_registry.handle_key_event(event)
         elif event.type == pygame.VIDEORESIZE:
             print('Video resized to {}'.format(event.size))
             self.screen = pygame.display.set_mode(event.size, pygame.RESIZABLE)
@@ -199,10 +400,12 @@ class StarGeneratorState:
     @staticmethod
     def load_state():
         if not os.path.isfile(CONFIG_FILE):
-            StarGeneratorState._logger.info("No config file found. Creating a blank StarGeneratorState.")
+            StarGeneratorState._logger.info(
+                "No config file found. Creating a blank StarGeneratorState.")
             return StarGeneratorState()
         with open(CONFIG_FILE, 'r') as in_file:
-            StarGeneratorState._logger.info("Loading StarGeneratorState from file %s.", CONFIG_FILE)
+            StarGeneratorState._logger.info(
+                "Loading StarGeneratorState from file %s.", CONFIG_FILE)
             return StarGeneratorState.from_yaml(yaml.load(in_file, Loader=SafeLoader))
 
     def update_screen(self):
@@ -212,12 +415,6 @@ class StarGeneratorState:
         else:
             self.screen = pygame.display.set_mode(
                 self.screen_size, pygame.RESIZABLE | pygame.NOFRAME)
-
-    def toggle_frame(self):
-        self._logger.debug('Toggling frame')
-        self.framed = not self.framed
-        self.update_screen()
-        self.save_state()
 
     def increase_amplitude(self):
         self._logger.debug('Increasing amplitude')
@@ -329,120 +526,38 @@ class StarGeneratorState:
         self.spot = self.spot.rounded()
         self.save_state()
 
-    def handle_key_up_event(self, key: int) -> None:
-        self._logger.debug('Released key %s', key)
-        if key in self.pressed_keys.keys():
-            del self.pressed_keys[key]
-        self.on_loop()
-
-    def handle_key_down_event(self, key: int, key_mod: int):
-        # if value contains the NUM pad modifier, remove it,
-        # because the code in trigger_key_events compares
-        # against values without NUM pad modifier.
-        key_mod -= (key_mod & pygame.KMOD_NUM)
-        self._logger.debug('Pressed key %s with value %s', key, key_mod)
-        self.pressed_keys[key] = key_mod
-        self.on_loop()
-
     def on_loop(self) -> None:
-        # if pressed escape, quit
-        if self.pressed_keys.get(pygame.K_ESCAPE, None) in [0]:
-            self.done = True
-        # if pressed Alt+F4, quit
-        elif self.pressed_keys.get(pygame.K_F4, None) in [pygame.KMOD_RALT, pygame.KMOD_LALT]:
-            self.done = True
-        #
-        # Frame
-        #
-        # if pressed 'f', toggle frame
-        elif self.pressed_keys.get(pygame.K_f, None) == 0:
-            self.toggle_frame()
-            del self.pressed_keys[pygame.K_f]
-        #
-        # Star size
-        #
-        # if pressed down, reduce size
-        elif self.pressed_keys.get(pygame.K_DOWN, None) == 0:
+        if self._reduce_star_is_active:
             self.reduce_star()
-        # if pressed up, increase size
-        elif self.pressed_keys.get(pygame.K_UP, None) == 0:
+        elif self._increase_star_is_active:
             self.enlarge_star()
-        # if pressed left, increase width
-        elif self.pressed_keys.get(pygame.K_LEFT, None) == 0:
+        elif self._widen_star_is_active:
             self.widen_star()
-        # if pressed right, reduce width
-        elif self.pressed_keys.get(pygame.K_RIGHT, None) == 0:
+        elif self._narrow_star_is_active:
             self.narrow_star()
-        # if pressed 'r', make round
-        elif self.pressed_keys.get(pygame.K_r, None) == 0:
-            self.make_star_round()
-            del self.pressed_keys[pygame.K_r]
-        # if pressed 'Ctrl+Shift+Down', reset size
-        elif self.pressed_keys.get(pygame.K_DOWN, None) in [pygame.KMOD_LCTRL | pygame.KMOD_LSHIFT,
-                                                            pygame.KMOD_RCTRL | pygame.KMOD_RSHIFT]:
-            self.reset_star()
-            del self.pressed_keys[pygame.K_DOWN]
-        #
-        # Spot size
-        #
-        # if pressed Alt+down, reduce spot size
-        elif self.pressed_keys.get(pygame.K_DOWN, None) in [pygame.KMOD_LALT, pygame.KMOD_RALT]:
+
+        if self._reduce_spot_is_active:
             self.reduce_spot()
-        # if pressed Alt+up, increase spot size
-        elif self.pressed_keys.get(pygame.K_UP, None) in [pygame.KMOD_LALT, pygame.KMOD_RALT]:
+        elif self._increase_spot_is_active:
             self.enlarge_spot()
-        # if pressed Alt+left, increase spot width
-        elif self.pressed_keys.get(pygame.K_LEFT, None) in [pygame.KMOD_LALT, pygame.KMOD_RALT]:
+        elif self._widen_spot_is_active:
             self.widen_spot()
-        # if pressed Alt+right, reduce spot width
-        elif self.pressed_keys.get(pygame.K_RIGHT, None) in [pygame.KMOD_LALT, pygame.KMOD_RALT]:
+        elif self._narrow_spot_is_active:
             self.narrow_spot()
-        # if pressed 'Alt+r', make round
-        elif self.pressed_keys.get(pygame.K_r, None) in [pygame.KMOD_LALT, pygame.KMOD_RALT]:
-            self.make_spot_round()
-            del self.pressed_keys[pygame.K_r]
-        # if pressed 'Ctrl+Alt+Shift+Down', reset size
-        elif self.pressed_keys.get(pygame.K_DOWN, None) in [pygame.KMOD_LCTRL | pygame.KMOD_LALT | pygame.KMOD_LSHIFT,
-                                                            pygame.KMOD_RCTRL | pygame.KMOD_RALT | pygame.KMOD_RSHIFT]:
-            self.reset_spot()
-            del self.pressed_keys[pygame.K_DOWN]
-        ###
-        # Spot position
-        ###
-        # if pressed Alt+u, move spot up
-        elif self.pressed_keys.get(pygame.K_u, None) in [pygame.KMOD_LALT, pygame.KMOD_RALT]:
+
+        if self._move_spot_up_is_active:
             self.move_spot_up()
-        # if pressed Alt+j, move spot down
-        elif self.pressed_keys.get(pygame.K_j, None) in [pygame.KMOD_LALT, pygame.KMOD_RALT]:
+        elif self._move_spot_down_is_active:
             self.move_spot_down()
-        # if pressed Alt+h, move spot left
-        elif self.pressed_keys.get(pygame.K_h, None) in [pygame.KMOD_LALT, pygame.KMOD_RALT]:
+        if self._move_spot_left_is_active:
             self.move_spot_left()
-        # if pressed Alt+k, move spot up
-        elif self.pressed_keys.get(pygame.K_k, None) in [pygame.KMOD_LALT, pygame.KMOD_RALT]:
+        elif self._move_spot_right_is_active:
             self.move_spot_right()
 
-        #
-        # Oscillation amplitude
-        #
-        # if pressed 'A', increase amplitude
-        elif self.pressed_keys.get(pygame.K_a, None) in [pygame.KMOD_LSHIFT, pygame.KMOD_RSHIFT]:
+        if self._increase_oscillation_amplitude_is_active:
             self.increase_amplitude()
-        # if pressed 'a', increase amplitude
-        elif self.pressed_keys.get(pygame.K_a, None) == 0:
+        elif self._decrease_oscillation_amplitude_is_active:
             self.decrease_amplitude()
-        # if pressed 'Ctrl+A', reset amplitude
-        elif self.pressed_keys.get(pygame.K_a, None) in [pygame.KMOD_LCTRL, pygame.KMOD_RCTRL]:
-            self.reset_amplitude()
-            del self.pressed_keys[pygame.K_a]
-        # if pressed 'p', toggle pulsation
-        elif self.pressed_keys.get(pygame.K_p, None) == 0:
-            self.toggle_pulsation()
-            del self.pressed_keys[pygame.K_p]
-        # if pressed 's', toggle spot
-        elif self.pressed_keys.get(pygame.K_s, None) == 0:
-            self.toggle_spot()
-            del self.pressed_keys[pygame.K_s]
 
     def clear_screen(self, color):
         self.screen.fill(color)
