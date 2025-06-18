@@ -21,6 +21,15 @@ class KeyRegistry(ABC):
     ) -> None:
         pass
 
+    @abstractmethod
+    def register_boolean_state_setter_on_key(
+        self,
+        key: int,
+        setter: Callable[[bool], None],
+        required_modifiers: list[int] = []
+    ) -> None:
+        pass
+
 
 class KeyEventHandler(ABC):
 
@@ -62,13 +71,32 @@ class KeyRegistryImpl(KeyRegistry, KeyEventHandler):
         else:
             if key not in self._key_down_with_modifiers_map:
                 self._key_down_with_modifiers_map[key] = []
-            self._key_down_with_modifiers_map[key].append(
-                _KeyWithModifiersAction(key, required_modifiers, action))
+            items = self._key_down_with_modifiers_map[key]
+            items.append(
+                _KeyWithModifiersAction(key, required_modifiers, action)
+            )
+            self._sort_key_with_modifiers_list_to_have_item_with_most_modifiers_first(
+                items
+            )
         if key_up_action is None:
             return
         if key not in self._key_up_map:
             self._key_up_map[key] = []
         self._key_up_map[key].append(key_up_action)
+
+    def _sort_key_with_modifiers_list_to_have_item_with_most_modifiers_first(
+        self,
+        items: list[_KeyWithModifiersAction]
+    ) -> None:
+        items.sort(key=lambda item: -len(item.modifiers))
+
+    def register_boolean_state_setter_on_key(self, key: int, setter: Callable[[bool], None], required_modifiers: list[int] = []) -> None:
+        self.register_key(
+            key,
+            action=lambda: setter(True),
+            key_up_action=lambda: setter(False),
+            required_modifiers=required_modifiers
+        )
 
     def handle_key_event(self, event: Event) -> None:
         if event.type == pygame.KEYUP:

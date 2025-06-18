@@ -1,18 +1,13 @@
-from argparse import ArgumentParser
-import logging
-import logging.config
 import pygame
 
-from transit_cam.logging_config import logging_config
 from transit_cam.colors import BLACK
+from transit_cam.executables.shared_logging_setup_for_executables import init_logging, parse_logging_args
 from transit_cam.star_generator_state import StarGeneratorState
 
 
-
 def main():
-    log_level = _parse_args()
-    _init_logging(log_level)
-    print(log_level)
+    log_level = parse_logging_args()
+    init_logging(log_level)
     pygame.init()
 
     sim_state: StarGeneratorState = StarGeneratorState.load_state()
@@ -24,7 +19,7 @@ def main():
 
     clock = pygame.time.Clock()
 
-    # main loop    
+    # main loop
     while not sim_state.done:
         for event in pygame.event.get():
             sim_state.on_event(event)
@@ -37,22 +32,6 @@ def main():
         clock.tick(60)
 
     pygame.quit()
-
-def _parse_args() -> str:
-    parser = ArgumentParser()
-    parser.add_argument(
-        "--log", 
-        choices=["debug", "info", "warning", "error"], 
-        default="warning", 
-        dest="log_level"
-    )
-    args = parser.parse_args()
-    return args.log_level
-
-def _init_logging(log_level: str) -> None:
-    logging_config["loggers"]["transit_cam"]["level"] = log_level.upper()
-    logging_config["handlers"]["console"]["level"] = log_level.upper()
-    logging.config.dictConfig(logging_config)
 
 
 if __name__ == '__main__':

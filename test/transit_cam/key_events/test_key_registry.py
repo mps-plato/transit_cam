@@ -127,3 +127,42 @@ class TestKeyRegistryImpl(unittest.TestCase):
         self.sut.register_key(pygame.K_a, mock_callback_without_mod)
         self.sut.handle_key_event(self.mock_key_event)
         mock_callback_with_mod.assert_called_once_with()
+
+    def test_that_the_setter_registered_for_key_K_b_is_called_with_True_on_keydown_K_b(self):
+        mock_setter = MagicMock()
+
+        self.sut.register_boolean_state_setter_on_key(
+            pygame.K_b,
+            setter=mock_setter
+        )
+
+        self.mock_key_event.type = pygame.KEYDOWN
+        self.mock_key_event.key = pygame.K_b
+
+        self.sut.handle_key_event(self.mock_key_event)
+
+        mock_setter.assert_called_once_with(True)
+
+    def test_that_the_setter_registered_for_K_b_plus_SHIFT_and_CTRL_is_correctly_called_even_if_another_setter_for_K_b_plus_only_SHIFT_was_registered_before_it(self):
+        mock_setter_both_mods = MagicMock()
+        mock_setter_single_mod = MagicMock()
+
+        self.sut.register_boolean_state_setter_on_key(
+            pygame.K_b,
+            mock_setter_single_mod,
+            required_modifiers=[pygame.KMOD_SHIFT]
+        )
+        self.sut.register_boolean_state_setter_on_key(
+            pygame.K_b,
+            mock_setter_both_mods,
+            required_modifiers=[pygame.KMOD_SHIFT, pygame.KMOD_CTRL]
+        )
+
+        self.mock_key_event.type = pygame.KEYDOWN
+        self.mock_key_event.key = pygame.K_b
+        self.mock_key_event.mod = pygame.KMOD_SHIFT | pygame.KMOD_CTRL
+
+        self.sut.handle_key_event(self.mock_key_event)
+
+        mock_setter_single_mod.assert_not_called()
+        mock_setter_both_mods.assert_called_once_with(True)
