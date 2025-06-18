@@ -7,7 +7,7 @@
 # Modified for Night of Science 2025 by Ilyas Kuhlemann (kuhlemann@mps.mpg.de) during June 2025.
 # -----
 
-
+from math import nan
 from numpy import mean, sort, array
 
 from transit_cam.analysis.models import LightCurve, TransitAnalysisResult
@@ -20,8 +20,7 @@ def analyze_transit(times, brightnesses):
 def lightcurve_analyze(light_curve: LightCurve) -> TransitAnalysisResult:
     times = array([point.time_diff(light_curve.first_point)
              for point in light_curve.points])
-    lightcurve = array([sum(point.value) for point in light_curve.points])
-    print(times.shape, lightcurve.shape)
+    lightcurve = array([sum(point.value) for point in light_curve.points])    
 
     lightcurve_outoftrans = _get_lightcurve_out_of_transit_level(lightcurve)
     lightcurve_norm = _normalize_lightcurve(lightcurve, lightcurve_outoftrans)
@@ -53,8 +52,10 @@ def lightcurve_analyze(light_curve: LightCurve) -> TransitAnalysisResult:
             timetrans_temp = []
             lightcurvetrans_temp = []
             transit_flag = False
-    print(transit_mids)
-    period = (transit_mids[-1] - transit_mids[0]) / max((len(transit_mids)-1), 1)
+    if len(transit_mids) > 0:
+        period = (transit_mids[-1] - transit_mids[0]) / max((len(transit_mids)-1), 1)
+    else:
+        period = nan
 
     depth = 100. - mean(transit_midfluxes)
 

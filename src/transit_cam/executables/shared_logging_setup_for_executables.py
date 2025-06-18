@@ -9,7 +9,7 @@ def parse_logging_args() -> str:
     parser.add_argument(
         "--log", 
         choices=["debug", "info", "warning", "error"], 
-        default="warning", 
+        default="info", 
         dest="log_level"
     )
     args = parser.parse_args()

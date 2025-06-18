@@ -69,7 +69,11 @@ class LightCurve:
         print(f'{len(result)} light curves read')
         return result
 
-    def extract(self, from_time, to_time):
+    def extract(
+        self,
+        from_time: datetime.datetime,
+        to_time: datetime.datetime
+    ) -> 'LightCurve':
         return LightCurve([point for point in self.points if from_time <= point.timestamp < to_time])
 
     def split(self, separators):
@@ -101,9 +105,6 @@ class LightCurve:
 
     def get_transit_center(self):
         threshold = (self.get_norm() + self.get_min()) / 2.
-        # mean_time = mean([point.time_diff(self.first_point)
-        #                   for point in self.points if mean(point.value) <= threshold])
-#         return self.first_point.timestamp+datetime.timedelta(seconds=mean_time)
 
         mean_time_obscuration = mean([point.time_diff(self.first_point)*(self.get_norm()-mean(point.value))
                                       for point in self.points if mean(point.value) <= threshold])

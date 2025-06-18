@@ -2,12 +2,13 @@
 from dataclasses import dataclass
 from pathlib import Path
 import datetime
-from math import sqrt
+from math import sqrt, isnan
+import logging
+
 import matplotlib.axes
 import matplotlib.backends.backend_pdf
 import matplotlib.figure
 from numpy import mean
-
 import matplotlib.pyplot as plt
 import matplotlib
 
@@ -29,13 +30,16 @@ YAXIS = 'Relative Helligkeit (%)'
 
 class Analyzer:
 
+    _logger = logging.getLogger("transit_cam.Analyzer")
+
     def __init__(self) -> None:
         pass
 
     def analyze_file(self, args: AnalyzeFileArgs) -> None:
-        print(f'Analyzing {args.number_of_lightcurves} light curves from file {args.input_file} with name {args.planet_name} and {"" if args.create_pdf else "not "}writing to PDF')
+        self._logger.info(
+            f'Analyzing {args.number_of_lightcurves} light curves from file {args.input_file} with name {args.planet_name} and {"" if args.create_pdf else "not "}writing to PDF')
         if not args.input_file.exists():
-            print(f'File {args.input_file} not found. Aborting')
+            self._logger.warning(f'File {args.input_file} not found. Aborting')
             return
 
         light_curves: list[LightCurve] = list(
@@ -43,42 +47,44 @@ class Analyzer:
         if args.number_of_lightcurves > 0:
             light_curves = light_curves[:args.number_of_lightcurves]
         for light_curve in light_curves:
-            analysis_result: transit_cam.analysis.models.TransitAnalysisResult = MPStransit.lightcurve_analyze(
-                light_curve
-            )
+            self._plot_single_light_curve(args, light_curve)
+
+    def _plot_single_light_curve(
+        self,
+        args: AnalyzeFileArgs,
+        light_curve: LightCurve
+    ) -> None:
+        analysis_result: transit_cam.analysis.models.TransitAnalysisResult = MPStransit.lightcurve_analyze(
+            light_curve
+        )
+        filename = light_curve.first_point.timestamp.strftime(
+            'Nacht des Wissens 2025 - %Y_%m_%d_%H_%M_%S.pdf')
+        self._logger.info("Writing pdf to %s", filename)
+
+        with matplotlib.backends.backend_pdf.PdfPages(filename) as pdf:
             fig1: matplotlib.figure.Figure = self._create_figure_with_full_lightcurve_plot(
                 analysis_result
             )
-            fig2: matplotlib.figure.Figure = self._create_figure_with_lightcurve_plot(
-                light_curve,
-                analysis_result,
-                len(light_curves),
-                args.planet_name
-            )
-            if args.create_pdf:
-                filename = light_curve.first_point.timestamp.strftime(
-                    'Nacht des Wissens 2025 - %Y_%m_%d_%H_%M_%S.pdf')
-                print("Writing pdf to", filename)
-                with matplotlib.backends.backend_pdf.PdfPages(filename) as pdf:                    
-                    pdf.savefig(fig1)                    
-                    pdf.savefig(fig2)
-            # plt.show()
+            pdf.savefig(fig1)
+            plt.close()
+            if not isnan(analysis_result.period) and analysis_result.period > 0:
+                fig2: matplotlib.figure.Figure = self._create_figure_with_folded_lightcurve_plot(
+                    light_curve,
+                    analysis_result,
+                    args.planet_name
+                )
+                pdf.savefig(fig2)
+                plt.close()
+            else:
+                self._logger.info(
+                    "lightcurve_analyze has not found a period => skipping folded light curve plots")
+
+        # plt.show()
 
     def _create_figure_with_full_lightcurve_plot(
         self,
         analysis_result: transit_cam.analysis.models.TransitAnalysisResult
     ) -> matplotlib.figure.Figure:
-        period, depth = (
-            analysis_result.period,
-            analysis_result.depth
-        )
-
-        print("Transit Period =  {:3f} s".format(period))
-        print("Transit Depth  = {:1f} %".format(depth))
-
-        print("\n==> The planet has a radius that is {:3f} times the radius of the star.".format(
-            sqrt(depth/100.)))
-
         fig = plt.figure(1)
         ax1 = fig.add_subplot(111)
         ax1.plot(
@@ -96,17 +102,16 @@ class Analyzer:
         ax1.set_xlabel("Zeit (s)")
 
         legend = ax1.legend(loc='upper right')
-        # Set the fontsize
+
         for label in legend.get_texts():
             label.set_fontsize('small')
 
         return fig
 
-    def _create_figure_with_lightcurve_plot(
+    def _create_figure_with_folded_lightcurve_plot(
         self,
         light_curve: LightCurve,
         transit_characteristica: transit_cam.analysis.models.TransitAnalysisResult,
-        number_of_lightcurves: int,
         planet_name: str
     ) -> matplotlib.figure.Figure:
         period, depth, transit_centers = (
@@ -116,14 +121,13 @@ class Analyzer:
         )
         clipped_curves = []
         for transit_center in transit_centers:
-            print(light_curve.first_point.timestamp)
-            print(transit_center)
-            print(period)
-            clipped_curve = light_curve.extract(light_curve.first_point.timestamp +
-                                                datetime.timedelta(
-                                                    seconds=transit_center - period / 2.),
-                                                light_curve.first_point.timestamp +
-                                                datetime.timedelta(seconds=transit_center + period / 2.))
+            self._logger.debug("transit_center = %f; period = %f", transit_center, period)
+            t_start = (light_curve.first_point.timestamp +
+                       datetime.timedelta(seconds=transit_center - period / 2.))
+            t_end = (light_curve.first_point.timestamp +
+                     datetime.timedelta(seconds=transit_center + period / 2.))
+            self._logger.debug("Extracting timespan from %s to %s", t_start, t_end)
+            clipped_curve = light_curve.extract(t_start, t_end)
             clipped_curves.append(clipped_curve.normalize())
 
         fig = plt.figure(1, dpi=400)
@@ -146,7 +150,7 @@ class Analyzer:
                                   for point in clipped_curve.points]
             ax1.plot(curve_time, light_curve_points)
         ax1.set_title('Gespiegelte Lichtkurve')
-        self._add_plot_info(ax1, period, number_of_lightcurves, depth)
+        self._add_plot_info(ax1, period, len(clipped_curves), depth)
 
         ax2: matplotlib.axes.Axes = fig.add_subplot(212)
         for clipped_curve in clipped_curves:
@@ -157,7 +161,7 @@ class Analyzer:
                                   for point in clipped_curve.points]
             ax2.plot(curve_time, light_curve_points)
         ax1.set_title('Direkte Lichtkurve')
-        self._add_plot_info(ax2, period, number_of_lightcurves, depth)
+        self._add_plot_info(ax2, period, len(clipped_curves), depth)
 
         # add timestamp at the bottom right
         fig.text(0.99, 0.01, light_curve.first_point.timestamp.strftime("%Y-%m-%dT%H:%M:%S"),

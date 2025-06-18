@@ -2,6 +2,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 
 
+from transit_cam.executables.shared_logging_setup_for_executables import init_logging
 from transit_cam.analysis.analyzer import AnalyzeFileArgs, Analyzer
 
     
@@ -29,12 +30,20 @@ def main():
         action='store', type=str, 
         help='name of the planet', default='MPS'
     )
+    parser.add_argument(
+        "--log", 
+        choices=["debug", "info", "warning", "error"], 
+        default="info", 
+        dest="log_level"
+    )
 
     args = parser.parse_args()
 
+    init_logging(args.log_level)
     files: list[Path] = sorted(Path("transit_cam_records").glob("*"))
     analyzer = Analyzer()
     for filename in files[-args.n_last_files:]:
+        print("-"*30)        
         analyzer.analyze_file(
             AnalyzeFileArgs(
                 filename,
