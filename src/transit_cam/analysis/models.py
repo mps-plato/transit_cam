@@ -1,10 +1,13 @@
+from dataclasses import dataclass
 import datetime
 
 from pylab import array, mean
+import numpy.typing as npt
+import numpy as np
 
 
 class LightPoint:
-    def __init__(self, timestamp, value):
+    def __init__(self, timestamp: datetime.datetime, value: npt.NDArray[np.float64]):
         self.timestamp = timestamp
         self.value = value
 
@@ -110,3 +113,13 @@ class LightCurve:
 
     def invert(self, timestamp):
         return LightCurve([LightPoint(timestamp-(point.timestamp-timestamp), point.value) for point in self.points])
+
+
+@dataclass
+class TransitAnalysisResult:
+    period: float
+    depth: float
+    transit_mids: list[float]
+    transit_mid_fluxes: list[float]
+    timestamps: npt.NDArray[np.float64]
+    percent_normalized_flux: npt.NDArray[np.float64]
