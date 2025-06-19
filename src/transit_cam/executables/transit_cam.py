@@ -1,5 +1,7 @@
 import pygame
 import datetime
+from argparse import ArgumentParser
+
 import pygame.camera as py_camera
 
 from transit_cam.executables.shared_logging_setup_for_executables import init_logging, parse_logging_args
@@ -16,13 +18,15 @@ last_logging_change = datetime.datetime.now()
 
 
 def main():
-    log_level = parse_logging_args()
+    camera_number, log_level = _parse_args()
     init_logging(log_level)
 
     pygame.init()
     py_camera.init(None)
     
-    camera = py_camera.Camera(py_camera.list_cameras()[0])
+    cameras = py_camera.list_cameras()
+    print("Cameras:", cameras)
+    camera = py_camera.Camera(cameras[camera_number])
     camera.start()
 
     size = DEFAULT_SIZE
@@ -58,6 +62,17 @@ def main():
 
     pygame.quit()
 
+def _parse_args() -> tuple[int, str]:
+    parser = ArgumentParser()
+    parser.add_argument(
+        "--log", 
+        choices=["debug", "info", "warning", "error"], 
+        default="info", 
+        dest="log_level"
+    )
+    parser.add_argument("camera_number", type=int)
+    args = parser.parse_args()
+    return args.camera_number, args.log_level    
 
 if __name__ == '__main__':
     main()

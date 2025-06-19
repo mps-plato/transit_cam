@@ -20,8 +20,6 @@ import transit_cam.analysis.models
 @dataclass
 class AnalyzeFileArgs:
     input_file: Path
-    create_pdf: bool
-    number_of_lightcurves: int
     planet_name: str
 
 
@@ -37,15 +35,13 @@ class Analyzer:
 
     def analyze_file(self, args: AnalyzeFileArgs) -> None:
         self._logger.info(
-            f'Analyzing {args.number_of_lightcurves} light curves from file {args.input_file} with name {args.planet_name} and {"" if args.create_pdf else "not "}writing to PDF')
+            f'Analyzing light curve from file {args.input_file} with name {args.planet_name} and writing to PDF')
         if not args.input_file.exists():
             self._logger.warning(f'File {args.input_file} not found. Aborting')
             return
 
         light_curves: list[LightCurve] = list(
             reversed(LightCurve.read(args.input_file)))
-        if args.number_of_lightcurves > 0:
-            light_curves = light_curves[:args.number_of_lightcurves]
         for light_curve in light_curves:
             self._plot_single_light_curve(args, light_curve)
 
@@ -57,8 +53,12 @@ class Analyzer:
         analysis_result: transit_cam.analysis.models.TransitAnalysisResult = MPStransit.lightcurve_analyze(
             light_curve
         )
-        filename = light_curve.first_point.timestamp.strftime(
-            'Nacht des Wissens 2025 - %Y_%m_%d_%H_%M_%S.pdf')
+        filename = (
+            'Nacht des Wissens 2025 - '
+            f'Planet {args.planet_name} - '
+            f'{light_curve.first_point.timestamp.strftime("%Y_%m_%d_%H_%M_%S")}'
+            '.pdf'
+        )
         self._logger.info("Writing pdf to %s", filename)
 
         with matplotlib.backends.backend_pdf.PdfPages(filename) as pdf:
